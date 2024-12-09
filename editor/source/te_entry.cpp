@@ -283,11 +283,11 @@ int main(int argc, char** argv) {
         about_panel(iconTexture, showAboutPanel);
 
         if (showDifficultyExplanation) {
-            if (ImGui::Begin("Difficulty Explanation", &showDifficultyExplanation)) {
+            if (ImGui::Begin("Difficulty Explanation", &showDifficultyExplanation, ImGuiWindowFlags_NoResize)) {
                 
                 //old image, replacing with table
                 //ImGui::Image((ImTextureID)(uintptr_t)diffTexture, ImGui::GetContentRegionAvail()); //remove and replace with table
-                if(ImGui::BeginTable("Difficulty Table", 3, ImGuiTableFlags_BordersInner | ImGuiTableFlags_SizingFixedFit))
+                if(ImGui::BeginTable("Difficulty Table", 3, ImGuiTableFlags_BordersInner | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX | !ImGuiTableFlags_Resizable))
                 {
 
                     //Set up the header columns
