@@ -329,7 +329,6 @@ int main(int argc, char** argv) {
 
                     if (ImGui::MenuItem("Enable Sekrit", nullptr, &secretEnabled, true))
                     {
-                        !secretEnabled;
                         ImGui::Text("%b", secretEnabled);
                     }
 
