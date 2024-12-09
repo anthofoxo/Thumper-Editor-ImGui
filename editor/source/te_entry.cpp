@@ -251,6 +251,14 @@ int main(int argc, char** argv) {
     bool modMode = false;
     bool secretEnabled = false;
 
+    //bools to control what editor panels are open. 
+    bool leafEditorShown = false;
+    bool lvlEditorShown = false;
+    bool gateEditorShown = false;
+    bool masterEditorShown = false;
+    bool workingFolderShown = false;
+    bool sampleEditorShown = false;
+
     std::vector<Level> levels;
 
     for (auto& entry : std::filesystem::directory_iterator("levels")) {
@@ -379,6 +387,287 @@ int main(int argc, char** argv) {
             ImGui::End();
             
         }
+        
+        if(ImGui::Begin("Thumper Level Editor v0.0.0.1", nullptr, ImGuiWindowFlags_MenuBar))
+        {
+            if(ImGui::BeginMenuBar())
+            {
+                if(ImGui::BeginMenu("File"))
+                {
+                    if (ImGui::MenuItem("Save All", "CTRL+Q"))
+                    {
+                        //Save all changes made to the objlib
+                    }
+
+                    if (ImGui::MenuItem("Open Level...", "CTRL+P"))
+                    {
+                        //Open an objlib / level
+                    }
+
+                    if (ImGui::MenuItem("Recent Levels...", "CTRL+R"))
+                    {
+                        //Open list of recently opened levels, will initially be none on first startup
+                    }
+
+                    ImGui::Separator();
+
+                    if (ImGui::MenuItem("Open current level in explorer", "CTRL+E"))
+                    {
+                        //Open the currently opened level / objlib in file explorer
+                    }
+
+
+
+                    if (ImGui::BeginMenu("Leaf..."))
+                    {
+                        if (ImGui::MenuItem("New", "CTRL+N"))
+                        {
+                            //Create a new, empty leaf file
+                        }
+
+                        if (ImGui::MenuItem("Open", "CTRL+O"))
+                        {
+                            //Open an existing leaf file
+                        }
+
+                        if (ImGui::MenuItem("Save", "CTRL+S"))
+                        {
+                            //Save the currently open leaf file
+                        }
+
+                        if (ImGui::MenuItem("Save As...", "CTRL+A"))
+                        {
+                            //Save the currently open leaf file as a different name / separate file
+                        }
+
+                        if (ImGui::MenuItem("Open Template", "CTRL+T"))
+                        {
+                            //Open a pre-made template of a leaf file
+                        }
+
+                        ImGui::EndMenu();
+                    }
+
+
+
+                    if (ImGui::BeginMenu("LVL..."))
+                    {
+                        if(ImGui::MenuItem("New", "ALT+N"))
+                        {
+                            //Create a new, empty lvl file
+                        }
+
+                        if (ImGui::MenuItem("Open", "ALT+O"))
+                        {
+                            //Open an existing lvl file
+                        }
+
+                        if (ImGui::MenuItem("Save", "ALT+S"))
+                        {
+                            //Save the currently open lvl file
+                        }
+
+                        if (ImGui::MenuItem("Save As...", "ALT+A"))
+                        {
+                            //Save the currently open lvl file as a different name / separate file
+                        }
+
+                        ImGui::EndMenu();
+                    }
+
+
+
+                    if (ImGui::BeginMenu("Gate..."))
+                    {
+                        if (ImGui::MenuItem("New", "CTRL+SHIFT+N"))
+                        {
+                            //Create a new, empty gate file
+                        }
+
+                        if (ImGui::MenuItem("Open", "CTRL+SHIFT+O"))
+                        {
+                            //Open an existing gate file
+                        }
+
+                        if (ImGui::MenuItem("Save", "CTRL+SHIFT+S"))
+                        {
+                            //Save the currently open gate file
+                        }
+
+                        if (ImGui::MenuItem("Save As...", "CTRL+SHIFT+A"))
+                        {
+                            //Save the currently open gate file as a different name / separate file
+                        }
+
+                        ImGui::EndMenu();
+                    }
+
+
+
+                    if (ImGui::BeginMenu("Master..."))
+                    {
+                        if (ImGui::MenuItem("New", "CTRL+ALT+N"))
+                        {
+                            //Create a new, empty master sequence file
+                        }
+
+                        if (ImGui::MenuItem("Open", "CTRL+ALT+O"))
+                        {
+                            //Open an existing master sequence file
+                        }
+
+                        if (ImGui::MenuItem("Save", "CTRL+ALT+S"))
+                        {
+                            //Save the currently open master sequence file
+                        }
+
+                        if (ImGui::MenuItem("Save As...", "CTRL+ALT+A"))
+                        {
+                            //Save the currently open master sequence file as a different name / separate file
+                        }
+
+                        ImGui::EndMenu();
+                    }
+
+
+
+                    if (ImGui::BeginMenu("Sample..."))
+                    {
+                        if (ImGui::MenuItem("New", "ALT+SHIFT+N"))
+                        {
+                            //Create a new, empty .samp container file
+                        }
+
+                        if (ImGui::MenuItem("Open", "ALT+SHIFT+O"))
+                        {
+                            //Open an existing lvl .samp container file
+                        }
+
+                        if (ImGui::MenuItem("Save", "ALT+SHIFT+S"))
+                        {
+                            //Save the currently open .samp container file
+                        }
+
+                        if (ImGui::MenuItem("Save As...", "ALT+SHIFT+A"))
+                        {
+                            //Save the currently open .samp container file as a different name / separate file
+                        }
+
+                        ImGui::EndMenu();
+                    }
+
+                    ImGui::Separator();
+
+                    if(ImGui::MenuItem("New Level Folder", "CTRL+L"))       // Fill background of button light green to highlight
+                    {
+                        //Create a new project folder that contains all the files of the custom level.
+                    }
+
+                    if (ImGui::MenuItem("Edit Level Details"))       // Fill background of button light grey to highlight
+                    {
+                        //Create a new details file that stores info about the level - description, authors, bpm etc...
+                    }
+
+                    if (ImGui::MenuItem("Regenerate Default Files"))       // Fill background of button light grey to highlight.        
+                    {
+                        //No comment, I actually don't know what this does
+                    }
+
+                    if (ImGui::BeginMenu("Template files..."))
+                    {
+                        if (ImGui::MenuItem("Open folder"))
+                        {
+                            //Open the folder that contains leaf template files
+                        }
+
+                        if (ImGui::MenuItem("Regenerate files"))
+                        {
+                            //Probably regenerates the default template files if they got deleted by accident
+                        }
+
+                        ImGui::EndMenu();
+                    }
+
+                    ImGui::Separator();
+
+                    if(ImGui::MenuItem("Exit"))
+                    {
+                        //Probably not needed anymore, but originally closes the entire editor program. Could probably re-use this to close the currently open level.
+                    }
+
+
+
+
+
+
+
+
+
+
+
+
+                    ImGui::EndMenu();
+                }
+
+                if(ImGui::BeginMenu("Edit"))
+                {
+
+                    if (ImGui::MenuItem("Preferences..."))
+                    {
+                        /*
+                        
+                        This opens a separate window that allows you to:
+                        - change the default colors of the editor
+                            - menu color
+                            - master sequence color
+                            - lvl editor color
+                            - sample editor color
+                            - gate editor color
+                            - leaf editor color
+                            - active panel color
+                            - background color
+                            - default track object selected (would probably be removed later) and its param
+                        - audio
+                            - mute application audio
+                        - keybinds
+                            - every keybind. leaf new, leaf open, template.. everything. Includes a search function.
+                        
+                        */
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                if (ImGui::BeginMenu("View"))
+                {
+                    ImGui::MenuItem("Leaf Editor", NULL, &leafEditorShown);
+                    ImGui::MenuItem("Lvl Editor", NULL, &lvlEditorShown);
+                    ImGui::MenuItem("Gate Editor", NULL, &gateEditorShown);
+                    ImGui::MenuItem("Master Editor", NULL, &masterEditorShown);
+                    ImGui::MenuItem("Working Folder", NULL, &workingFolderShown);
+                    ImGui::MenuItem("Sample Editor", NULL, &sampleEditorShown);
+
+                    ImGui::EndMenu();
+                }
+
+                if (ImGui::BeginMenu("Window"))
+                {
+                    //No clue what this is.
+
+                    ImGui::EndMenu();
+                }
+
+                if (ImGui::BeginMenu("Help"))
+                {
+                    //Fill this in later because I cannot be bothered
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::EndMenuBar();
+            }
+        }
+        ImGui::End();
 
         if (ImGui::Begin("Thumper Mod Loader v2.0.0.0", nullptr, ImGuiWindowFlags_MenuBar)) {
 
