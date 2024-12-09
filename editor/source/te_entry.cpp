@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include "te_audio.hpp"
+#include "te_window.hpp"
 
 #include <stb_image.h>
 #include <miniaudio.h>
@@ -190,15 +191,14 @@ int main(int argc, char** argv) {
         if (!thumperPath) return EXIT_FAILURE;
     }
 
-	glfwSetErrorCallback([](int error_code, char const* description) {
-		fprintf(stderr, "GLFW Error %d: %s\n", error_code, description);
-	});
+    tcle::Window window({
+        .width = 1280,
+        .height = 720,
+        .title = "Thumper Mod Loader v2.0.0.0",
 
-	glfwInit();
-
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
-	GLFWwindow* window = glfwCreateWindow(1280, 720, "Thumper Mod Loader v2.0.0.0", nullptr, nullptr);
+        .maximized = true,
+        .visible = false,
+    });
 
     // Set window icon
     {
@@ -409,8 +409,8 @@ int main(int argc, char** argv) {
     imgui_uninit();
 
 	glfwMakeContextCurrent(nullptr);
-	glfwDestroyWindow(window);
-	glfwTerminate();
+	
+    window = {};
 
     audioEngine.uninit();
 
