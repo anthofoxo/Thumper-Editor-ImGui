@@ -219,6 +219,7 @@ int main(int argc, char** argv) {
     bool showAboutPanel = false;
     bool showDifficultyExplanation = false;
     bool modMode = false;
+    bool showDearImGuiDemo = false;
 
     std::vector<Level> levels;
 
@@ -247,6 +248,16 @@ int main(int argc, char** argv) {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+
+        if (ImGui::BeginMainMenuBar()) {
+            if (ImGui::BeginMenu("View")) {
+                ImGui::MenuItem("Dear ImGui Demo", nullptr, &showDearImGuiDemo);
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMainMenuBar();
+        }
 
         hash_panel(showHashPanel);
         about_panel(iconTexture, showAboutPanel);
@@ -354,7 +365,8 @@ int main(int argc, char** argv) {
         }
         ImGui::End();
 
-        ImGui::ShowDemoWindow();
+        if(showDearImGuiDemo)
+            ImGui::ShowDemoWindow(&showDearImGuiDemo);
 
         ImGui::Render();
         int display_w, display_h;
