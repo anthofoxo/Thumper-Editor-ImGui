@@ -211,6 +211,7 @@ int main(int argc, char** argv) {
     }
     catch (YAML::BadFile const&) {
         // Do nothing, use defaults
+        tinyfd_messageBox("ERROR", "Config file not found! \nYou will need to re-select your Thumper executable.", "ok", "error", 1);
     }
 
     // If invalid, request path
@@ -277,6 +278,7 @@ int main(int argc, char** argv) {
     bool showAboutPanel = false;
     bool showDifficultyExplanation = false;
     bool modMode = false;
+    bool secretEnabled = false;
 
     std::vector<Level> levels;
 
@@ -323,6 +325,12 @@ int main(int argc, char** argv) {
                 if (ImGui::BeginMenu("Options")) {
                     if (ImGui::MenuItem("Change Game Dir")) {
                         if (auto path = select_directory_save()) thumperPath = path;
+                    }
+
+                    if (ImGui::MenuItem("Enable Sekrit", nullptr, &secretEnabled, true))
+                    {
+                        !secretEnabled;
+                        ImGui::Text("%b", secretEnabled);
                     }
 
                     ImGui::MenuItem("Hash Panel", nullptr, &showHashPanel);
