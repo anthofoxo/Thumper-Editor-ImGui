@@ -284,9 +284,100 @@ int main(int argc, char** argv) {
 
         if (showDifficultyExplanation) {
             if (ImGui::Begin("Difficulty Explanation", &showDifficultyExplanation)) {
-                ImGui::Image((ImTextureID)(uintptr_t)diffTexture, ImGui::GetContentRegionAvail());
+                
+                //old image, replacing with table
+                //ImGui::Image((ImTextureID)(uintptr_t)diffTexture, ImGui::GetContentRegionAvail()); //remove and replace with table
+                if(ImGui::BeginTable("Difficulty Table", 3, ImGuiTableFlags_BordersInner | ImGuiTableFlags_SizingFixedFit))
+                {
+
+                    //Set up the header columns
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("Difficulty Rating");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("Description");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("Icon");
+
+                    //D0
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("D0");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("EASY. Equivalent to early game");
+                    ImGui::TableNextColumn();
+                    //Place icon here
+
+                    //D1
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("D1");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("NORMAL. Ranging from mid-game to Level 9.");
+                    ImGui::TableNextColumn();
+                    //Place icon here
+
+                    //D2
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("D2");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("INTERMEDIATE. Ranging from 9+ to harder than base game.");
+                    ImGui::TableNextColumn();
+                    //Place icon here
+
+                    //D3
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("D2");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("HARD. Much harder than the base game, hindered sight-reading.");
+                    ImGui::TableNextColumn();
+                    //Place icon here
+
+                    //D4
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("D4");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("DAUNTING. Further-hindered sight-reading, some input intensity.");
+                    ImGui::TableNextColumn();
+                    //Place icon here
+
+                    //D5
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("D5");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("EXTREME. Mostly input intensive, fast tempo, hindered sight reading.");
+                    ImGui::TableNextColumn();
+                    //Place icon here
+
+                    //D6
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("D6");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("PAINFUL. Incredibly input intensive, barely sight readable.");
+                    ImGui::TableNextColumn();
+                    //Place icon here
+
+                    //D7
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("D7");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("EXCRUCIATING. Unreadable, lightning fast, crazily input intensive, relying only on muscle memory through practice.");
+                    ImGui::TableNextColumn();
+                    //Place icon here
+
+                    ImGui::EndTable();
+                }
+                
+                
             }
             ImGui::End();
+            
         }
 
         if (ImGui::Begin("Thumper Mod Loader v2.0.0.0", nullptr, ImGuiWindowFlags_MenuBar)) {
