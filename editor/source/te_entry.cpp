@@ -327,10 +327,7 @@ int main(int argc, char** argv) {
                         if (auto path = select_directory_save()) thumperPath = path;
                     }
 
-                    if (ImGui::MenuItem("Enable Sekrit", nullptr, &secretEnabled, true))
-                    {
-                        ImGui::Text("%b", secretEnabled);
-                    }
+                    ImGui::MenuItem("Enable Sekrit", nullptr, &secretEnabled, true);
 
                     ImGui::MenuItem("Hash Panel", nullptr, &showHashPanel);
                     ImGui::MenuItem("[!!!] Reset Settings [!!!]", nullptr, nullptr, false);
