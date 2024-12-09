@@ -7,6 +7,7 @@
 
 #include "te_audio.hpp"
 #include "te_window.hpp"
+#include "te_image.hpp"
 
 #include <stb_image.h>
 #include <miniaudio.h>
@@ -27,36 +28,6 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
-
-class Image final {
-public:
-    constexpr Image() = default;
-    Image(char const* aPath) {
-        mPixels = stbi_load(aPath, &mWidth, &mHeight, nullptr, 4);
-    }
-
-    ~Image() noexcept {
-        stbi_image_free(mPixels);
-    }
-
-    Image(Image const&) = delete;
-    Image& operator=(Image const&) = delete;
-
-    Image(Image&& other) noexcept { *this = std::move(other); }
-    Image& operator=(Image&& other) noexcept {
-        std::swap(mWidth, other.mWidth);
-        std::swap(mHeight, other.mHeight);
-        std::swap(mPixels, other.mPixels);
-        return *this;
-    }
-
-    inline int width() const { return mWidth; }
-    inline int height() const { return mHeight; }
-    inline stbi_uc* pixels() const { return mPixels; }
-private:
-    int mWidth = 0, mHeight = 0;
-    stbi_uc* mPixels = nullptr;
-};
 
 struct Level {
     std::string name;
@@ -202,7 +173,7 @@ int main(int argc, char** argv) {
 
     // Set window icon
     {
-        Image icon32("thumper_modding_tool_32.png");
+        tcle::Image icon32("thumper_modding_tool_32.png");
         GLFWimage image{
             .width = icon32.width(),
             .height = icon32.height(),
@@ -225,7 +196,7 @@ int main(int argc, char** argv) {
     // Load larger icon, seen in the about panel
     GLuint iconTexture;
     {
-        Image image("thumper_modding_tool.png");
+        tcle::Image image("thumper_modding_tool.png");
         glCreateTextures(GL_TEXTURE_2D, 1, &iconTexture);
         glTextureStorage2D(iconTexture, 1, GL_RGBA8, image.width(), image.height());
         glTextureSubImage2D(iconTexture, 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
@@ -235,7 +206,7 @@ int main(int argc, char** argv) {
     // Difficulty ranking texture, Should be converted to an imgui table
     GLuint diffTexture;
     {
-        Image image("diff.png");
+        tcle::Image image("diff.png");
         glCreateTextures(GL_TEXTURE_2D, 1, &diffTexture);
         glTextureStorage2D(diffTexture, 1, GL_RGBA8, image.width(), image.height());
         glTextureSubImage2D(diffTexture, 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
