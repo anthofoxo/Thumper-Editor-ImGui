@@ -259,6 +259,12 @@ int main(int argc, char** argv) {
             ImGui::EndMainMenuBar();
         }
 
+        if (ImGui::Begin("Debug")) {
+            std::string path = path_to_string(thumperPath.value());
+            ImGui::LabelText("Thumper Path", "%s", path.c_str());
+        }
+        ImGui::End();
+
         hash_panel(showHashPanel);
         about_panel(iconTexture, showAboutPanel);
 
