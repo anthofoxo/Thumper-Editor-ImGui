@@ -445,6 +445,9 @@ void read_all_leafs(std::optional<std::filesystem::path> const& aThumperPath) {
         data.objectImports.resize(read_u32(bytes, offset));
 
         levelView.name = data.originName;
+        if (levelView.name.empty()) { // No origin??? Likely a custom level
+            levelView.name = std::string(level) + "(Recovered)";
+        }
 
         for (int i = 0; i < data.objectImports.size(); ++i) {
             data.objectImports[i].type = read_u32(bytes, offset);
