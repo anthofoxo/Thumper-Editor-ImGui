@@ -21,6 +21,7 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <misc/cpp/imgui_stdlib.h>
+#include <imgui_memory_editor.h>
 
 #include <cstdlib> // EXIT_SUCCESS, EXIT_FAILURE
 #include <stdio.h>
@@ -29,6 +30,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <any>
 
 struct Level {
     std::string name;
@@ -141,6 +143,16 @@ void imgui_uninit() {
     ImGui::DestroyContext();
 }
 
+std::vector<char> read_path_binary(std::filesystem::path const& aPath) {
+    std::ifstream file(aPath, std::ios::in | std::ios::binary);
+    std::vector<char> buffer;
+    file.seekg(0, std::ios::end);
+    buffer.resize(file.tellg());
+    file.seekg(0, std::ios::beg);
+    file.read(buffer.data(), buffer.size());
+    return buffer;
+}
+
 class Application final {
 public:
     void init();
@@ -151,6 +163,8 @@ public:
     tcle::Window mWindow;
     AudioEngine mAudioEngine;
     bool mRunning = true;
+
+    ImFont* mFontMono = nullptr;
 
     GLuint mIconTexture = 0;
     std::array<GLuint, 8> mDiffTextures{};
@@ -171,6 +185,455 @@ public:
 
     std::vector<Level> mLevels;
 };
+
+uint32_t read_u32(std::vector<char>& bytes, size_t& offset) {
+    uint32_t val = *reinterpret_cast<uint32_t*>(bytes.data() + offset);
+    offset += sizeof(uint32_t);
+    return val;
+}
+
+int32_t read_s32(std::vector<char>& bytes, size_t& offset) {
+    int32_t val = *reinterpret_cast<int32_t*>(bytes.data() + offset);
+    offset += sizeof(int32_t);
+    return val;
+}
+
+float read_f32(std::vector<char>& bytes, size_t& offset) {
+    float val = *reinterpret_cast<float*>(bytes.data() + offset);
+    offset += sizeof(float);
+    return val;
+}
+
+uint8_t read_u8(std::vector<char>& bytes, size_t& offset) {
+    float val = *reinterpret_cast<uint8_t*>(bytes.data() + offset);
+    offset += sizeof(uint8_t);
+    return val;
+}
+
+std::string read_str(std::vector<char>& bytes, size_t& offset) {
+    std::string string;
+    string.resize(read_u32(bytes, offset));
+    memcpy(string.data(), bytes.data() + offset, string.size());
+    offset += string.size();
+    return string;
+}
+
+// This current definition can fully read all vanilla thumper levels
+struct ObjLibLeafDef final {
+    std::string leafname; // Not in packed binary format
+    size_t offset; // Not in packed binary format
+
+    struct Datapoint final {
+        float time;
+        std::any value;
+        std::string interpolation;
+        std::string easing;
+
+        void read(std::vector<char>& bytes, size_t& offset, uint32_t trait) {
+            time = read_f32(bytes, offset);
+
+            switch (trait) {
+            case 1: // kTraitBool
+                value = read_u8(bytes, offset);
+                break;
+            case 2: // kTraitFloat
+                value = read_f32(bytes, offset);
+                break;
+            case 8: // kTraitAction
+                value = read_u8(bytes, offset);
+                break;
+            default:
+                __debugbreak();
+            }
+
+            interpolation = read_str(bytes, offset);
+            easing = read_str(bytes, offset);
+        }
+    };
+
+    struct Trait final {
+        std::string traitName;
+        uint32_t unknown0;
+        uint32_t param;
+        int32_t subObjectParamShareIdx;
+        uint32_t trait;
+        std::vector<Datapoint> datapoints;
+        std::vector<Datapoint> editorDatapoints;
+
+        uint32_t unknown1;
+        uint32_t unknown2;
+        uint32_t unknown3;
+        uint32_t unknown4;
+        uint32_t unknown5;
+
+        std::string intensity0;
+        std::string intensity1;
+
+        uint8_t unknown6;
+        uint8_t unknown7;
+        uint32_t unknown8;
+
+        float unknown9;
+        float unknown10;
+        float unknown11;
+        float unknown12;
+        float unknown13;
+
+        uint8_t unknown14;
+        uint8_t unknown15;
+        uint8_t unknown16;
+
+        void read(std::vector<char>& bytes, size_t& offset) {
+            traitName = read_str(bytes, offset);
+            unknown0 = read_u32(bytes, offset);
+            param = read_u32(bytes, offset);
+            subObjectParamShareIdx = read_s32(bytes, offset);
+            trait = read_u32(bytes, offset);
+            datapoints.resize(read_u32(bytes, offset));
+
+            for (int iDatapoint = 0; iDatapoint < datapoints.size(); ++iDatapoint) {
+                datapoints[iDatapoint].read(bytes, offset, trait);
+            }
+
+            editorDatapoints.resize(read_u32(bytes, offset));
+
+            for (int iDatapoint = 0; iDatapoint < editorDatapoints.size(); ++iDatapoint) {
+                editorDatapoints[iDatapoint].read(bytes, offset, trait);
+            }
+
+            unknown1 = read_u32(bytes, offset);
+            unknown2 = read_u32(bytes, offset);
+            unknown3 = read_u32(bytes, offset);
+            unknown4 = read_u32(bytes, offset);
+            unknown5 = read_u32(bytes, offset);
+            intensity0 = read_str(bytes, offset);
+            intensity1 = read_str(bytes, offset);
+            unknown6 = read_u8(bytes, offset);
+            unknown7 = read_u8(bytes, offset);
+            unknown8 = read_u32(bytes, offset);
+            unknown9 = read_f32(bytes, offset);
+            unknown10 = read_f32(bytes, offset);
+            unknown11 = read_f32(bytes, offset);
+            unknown12 = read_f32(bytes, offset);
+            unknown13 = read_f32(bytes, offset);
+            unknown14 = read_u8(bytes, offset);
+            unknown15 = read_u8(bytes, offset);
+            unknown16 = read_u8(bytes, offset);
+        }
+    };
+
+    uint32_t hash;
+    uint32_t unknown0;
+    uint32_t hash2;
+    std::string timeUnit;
+    uint32_t hash3;
+    std::vector<Trait> traits;
+
+    void read(std::vector<char>& bytes, size_t& offset) {
+        hash = read_u32(bytes, offset);
+        unknown0 = read_u32(bytes, offset);
+        hash2 = read_u32(bytes, offset);
+        timeUnit = read_str(bytes, offset);
+        hash3 = read_u32(bytes, offset);
+        traits.resize(read_u32(bytes, offset));
+
+        for (int iTrait = 0; iTrait < traits.size(); ++iTrait) {
+            traits[iTrait].read(bytes, offset);
+        }
+
+        // Leaf footer, seems to be variable length??
+        // Can ignore for now
+    }
+};
+
+struct ObjlibLevel final {
+    std::string name;
+    std::vector<ObjLibLeafDef> leafs;
+};
+
+std::vector<ObjlibLevel> gLevels;
+
+void read_all_leafs(std::optional<std::filesystem::path> const& aThumperPath) {
+    std::array<std::string, 10> levels = {
+        "Alevels/title_screen.objlib",
+        "Alevels/demo.objlib",
+        "Alevels/level2/level_2a.objlib",
+        "Alevels/level3/level_3a.objlib",
+        "Alevels/level4/level_4a.objlib",
+        "Alevels/level5/level_5a.objlib",
+        "Alevels/level6/level_6.objlib",
+        "Alevels/level7/level_7a.objlib",
+        "Alevels/level8/level_8a.objlib",
+        "Alevels/level9/level_9a.objlib",
+    };
+
+    struct ObjLibLibraryImports final {
+        uint32_t unknown00;
+        std::string importName;
+    };
+
+    struct ObjLibObjectDeclaration final {
+        uint32_t type;
+        std::string name;
+
+        // Not in objlib, computed at runtime
+        size_t offset = 0;
+        bool found = false;
+    };
+
+    struct ObjLibObjectImport final {
+        uint32_t type;
+        std::string objectName;
+        uint32_t unknown0;
+        std::string libraryName;
+    };
+
+    struct ParsedData {
+        uint32_t fileType; // Assumes 8
+        uint32_t objlibType;
+        uint32_t unknown00;
+        uint32_t unknown01;
+        uint32_t unknown02;
+        uint32_t unknown03;
+        std::vector<ObjLibLibraryImports> libraryImports;
+        std::string originName;
+        std::vector<ObjLibObjectImport> objectImports;
+        std::vector<ObjLibObjectDeclaration> objectDeclarations;
+    };
+
+    for (auto const& level : levels) {
+        ObjlibLevel levelView;
+
+        std::string path = std::format("{}/cache/{:x}.pc", path_to_string(aThumperPath.value()), hash32(level));
+        auto bytes = read_path_binary(path);
+        size_t offset = 0;
+
+        ParsedData data;
+
+        data.fileType = read_u32(bytes, offset);
+        data.objlibType = read_u32(bytes, offset);
+        data.unknown00 = read_u32(bytes, offset);
+        data.unknown01 = read_u32(bytes, offset);
+        data.unknown02 = read_u32(bytes, offset);
+        data.unknown03 = read_u32(bytes, offset);
+        data.libraryImports.resize(read_u32(bytes, offset));
+
+        for (int i = 0; i < data.libraryImports.size(); ++i) {
+            data.libraryImports[i].unknown00 = read_u32(bytes, offset);
+            data.libraryImports[i].importName = read_str(bytes, offset);
+        }
+
+        data.originName = read_str(bytes, offset);
+        data.objectImports.resize(read_u32(bytes, offset));
+
+        levelView.name = data.originName;
+
+        for (int i = 0; i < data.objectImports.size(); ++i) {
+            data.objectImports[i].type = read_u32(bytes, offset);
+            data.objectImports[i].objectName = read_str(bytes, offset);
+            data.objectImports[i].unknown0 = read_u32(bytes, offset);
+            data.objectImports[i].libraryName = read_str(bytes, offset);
+        }
+
+        data.objectDeclarations.resize(read_u32(bytes, offset));
+
+        for (int i = 0; i < data.objectDeclarations.size(); ++i) {
+            data.objectDeclarations[i].type = read_u32(bytes, offset);
+            data.objectDeclarations[i].name = read_str(bytes, offset);
+        }
+
+        for (int i = 0; i < data.objectDeclarations.size(); ++i) {
+            if (data.objectDeclarations[i].type == 0xce7e85f6) { // Leaf
+                // Match leaf header
+                std::array<char, 16> header{ 0x22, 0x00, 0x00, 0x00, 0x21, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, };
+                auto it = std::search(bytes.begin() + offset, bytes.end(), header.begin(), header.end());
+
+                // Found it
+                if (it != bytes.end()) {
+                    offset += std::distance(bytes.begin() + offset, it);
+                    data.objectDeclarations[i].offset = offset;
+                    data.objectDeclarations[i].found = true;
+
+                    //printf("%s @ %s:0x%X\n", data.objectDeclarations[i].name.c_str(), data.originName.c_str(), offset);
+                    offset += header.size(); // advance past header
+
+                    ObjLibLeafDef leaf;
+                    leaf.read(bytes, offset);
+                    leaf.leafname = data.objectDeclarations[i].name;
+                    leaf.offset = data.objectDeclarations[i].offset;
+
+                    levelView.leafs.push_back(std::move(leaf));
+                }
+            }
+#if 0
+            if (data.objectDeclarations[i].type == 0x7aa8f390) { // Samp
+                // Match leaf header
+                std::array<char, 12> header{ 0x0C, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 };
+                auto it = std::search(bytes.begin() + offset, bytes.end(), header.begin(), header.end());
+
+                // Found it
+                if (it != bytes.end()) {
+                    offset += std::distance(bytes.begin() + offset, it);
+                    data.objectDeclarations[i].offset = offset;
+                    data.objectDeclarations[i].found = true;
+
+                    //printf("%s @ 0x%X\n", data.objectDeclarations[i].name.c_str(), offset);
+                    offset += header.size(); // advance past header
+                }
+            }
+
+            if (data.objectDeclarations[i].type == 0xbcd17473) { // Lvl
+                // Match leaf header
+                std::array<char, 16> header{ 0x33, 0x00, 0x00, 0x00, 0x21, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00 };
+                auto it = std::search(bytes.begin() + offset, bytes.end(), header.begin(), header.end());
+
+                // Found it
+                if (it != bytes.end()) {
+                    offset += std::distance(bytes.begin() + offset, it);
+                    data.objectDeclarations[i].offset = offset;
+                    data.objectDeclarations[i].found = true;
+
+                    //printf("%s @ 0x%X\n", data.objectDeclarations[i].name.c_str(), offset);
+                    offset += header.size(); // advance past header
+                }
+            }
+
+            if (data.objectDeclarations[i].type == 0xaa63a508) { // Gate
+                // Match leaf header
+                std::array<char, 12> header{ 0x1A, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 };
+                auto it = std::search(bytes.begin() + offset, bytes.end(), header.begin(), header.end());
+
+                // Found it
+                if (it != bytes.end()) {
+                    offset += std::distance(bytes.begin() + offset, it);
+                    data.objectDeclarations[i].offset = offset;
+                    data.objectDeclarations[i].found = true;
+
+                    //printf("%s @ 0x%X\n", data.objectDeclarations[i].name.c_str(), offset);
+                    offset += header.size(); // advance past header
+                }
+            }
+
+            if (data.objectDeclarations[i].type == 0x86621b1e) { // Flow
+                // Match leaf header
+                std::array<char, 12> header{ 0x16, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00 };
+                auto it = std::search(bytes.begin() + offset, bytes.end(), header.begin(), header.end());
+
+                // Found it
+                if (it != bytes.end()) {
+                    offset += std::distance(bytes.begin() + offset, it);
+                    data.objectDeclarations[i].offset = offset;
+                    data.objectDeclarations[i].found = true;
+
+                    //printf("%s @ 0x%X\n", data.objectDeclarations[i].name.c_str(), offset);
+                    offset += header.size(); // advance past header
+                }
+            }
+
+            if (data.objectDeclarations[i].type == 0x4890a3f6) { // Path
+                // Match leaf header
+                std::array<char, 12> header{ 0x29, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 };
+                auto it = std::search(bytes.begin() + offset, bytes.end(), header.begin(), header.end());
+
+                // Found it
+                if (it != bytes.end()) {
+                    offset += std::distance(bytes.begin() + offset, it);
+                    data.objectDeclarations[i].offset = offset;
+                    data.objectDeclarations[i].found = true;
+
+                    //printf("%s @ 0x%X\n", data.objectDeclarations[i].name.c_str(), offset);
+                    offset += header.size(); // advance past header
+                }
+            }
+
+            if (data.objectDeclarations[i].type == 0x8f86650f) { // Cam
+                // Match leaf header
+                std::array<char, 12> header{ 0x06, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00 };
+                auto it = std::search(bytes.begin() + offset, bytes.end(), header.begin(), header.end());
+
+                // Found it
+                if (it != bytes.end()) {
+                    offset += std::distance(bytes.begin() + offset, it);
+                    data.objectDeclarations[i].offset = offset;
+                    data.objectDeclarations[i].found = true;
+
+                    //printf("%s @ 0x%X\n", data.objectDeclarations[i].name.c_str(), offset);
+                    offset += header.size(); // advance past header
+                }
+            }
+
+            if (data.objectDeclarations[i].type == 0xbf69f115) { // Mesh
+                // Match leaf header
+                std::array<char, 12> header{ 0x0F, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00 };
+                auto it = std::search(bytes.begin() + offset, bytes.end(), header.begin(), header.end());
+
+                // Found it
+                if (it != bytes.end()) {
+                    offset += std::distance(bytes.begin() + offset, it);
+                    data.objectDeclarations[i].offset = offset;
+                    data.objectDeclarations[i].found = true;
+
+                    //printf("%s @ 0x%X\n", data.objectDeclarations[i].name.c_str(), offset);
+                    offset += header.size(); // advance past header
+                }
+            }
+
+            if (data.objectDeclarations[i].type == 0x490780b9) { // Master
+                // Match leaf header
+                std::array<char, 12> header{ 0x0C, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 };
+                auto it = std::search(bytes.begin() + offset, bytes.end(), header.begin(), header.end());
+
+                // Found it
+                if (it != bytes.end()) {
+                    offset += std::distance(bytes.begin() + offset, it);
+                    data.objectDeclarations[i].offset = offset;
+                    data.objectDeclarations[i].found = true;
+
+                    //printf("%s @ 0x%X\n", data.objectDeclarations[i].name.c_str(), offset);
+                    offset += header.size(); // advance past header
+                }
+            }
+
+            if (data.objectDeclarations[i].type == 0x5232f8f9) { // Anim
+                // Match leaf header
+                std::array<char, 12> header{ 0x21, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00 };
+                //std::array<char, 16> header{ 0x04, 0x00, 0x00, 0x00, 0x21, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00 };
+                auto it = std::search(bytes.begin() + offset, bytes.end(), header.begin(), header.end());
+
+                // Found it
+                if (it != bytes.end()) {
+                    offset += std::distance(bytes.begin() + offset, it);
+                    data.objectDeclarations[i].offset = offset;
+                    data.objectDeclarations[i].found = true;
+
+                    // printf("%s @ 0x%X\n", data.objectDeclarations[i].name.c_str(), offset);
+                    offset += header.size(); // advance past header
+                }
+            }
+#endif
+        }
+
+#if 0
+        int notFoundCount = 0;
+
+        printf("%s", "Could not find offsets for the following object declatations:\n");
+        for (int i = 0; i < data.objectDeclarations.size(); ++i) {
+            if (!data.objectDeclarations[i].found) {
+                notFoundCount++;
+
+                if (data.objectDeclarations[i].type != 0xce7e85f6) continue;
+
+
+                printf("%s [%d]\n", data.objectDeclarations[i].name.c_str(), i);
+            }
+        }
+
+        printf("----- Found %d / %d declaration offsets -----\n", data.objectDeclarations.size() - notFoundCount, data.objectDeclarations.size());
+#endif
+
+        gLevels.push_back(std::move(levelView));
+    }
+}
 
 void Application::init() {
     // Read configs
@@ -249,6 +712,10 @@ void Application::init() {
 
     imgui_init(mWindow);
 
+    mFontMono = ImGui::GetIO().Fonts->AddFontFromFileTTF("fonts/NotoSansMono-Regular.ttf", 18.0f);
+
+    read_all_leafs(mThumperPath);
+
     for (auto& entry : std::filesystem::directory_iterator("levels")) {
         if (!entry.is_directory()) continue;
         std::filesystem::path path = entry.path() / "LEVEL DETAILS.txt";
@@ -263,6 +730,8 @@ void Application::init() {
             node["author"].as<std::string>("")
         );
     }
+
+    
 }
 
 void Application::uninit() {
@@ -352,6 +821,122 @@ void Application::update() {
     about_panel(mIconTexture, mShowAboutPanel);
 
     tcle::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
+
+    if (ImGui::Begin("Level Leafs")) {
+        for (auto& level : gLevels) {
+            if (ImGui::CollapsingHeader(level.name.c_str())) {
+                for (auto& leaf : level.leafs) {
+                    ImGui::Button(leaf.leafname.c_str());
+                    ImGui::SetItemTooltip("Offset 0x%X", leaf.offset);
+                }
+            }
+        }
+    }
+    ImGui::End();
+                
+    
+#if 0
+        auto hash_to_str = [](uint32_t hash) -> char const* {
+            switch (hash) {
+            case 0x5232f8f9: return ".anim Objects";
+            case 0x7dd6b7d8: return ".bend Objects";
+            case 0x570e17fa: return ".bind Objects";
+            case 0x8f86650f: return ".cam Objects";
+            case 0xadb02913: return ".ch Objects";
+            case 0x4945e860: return ".cond Objects";
+            case 0xac1abb2c: return ".dch Objects";
+            case 0x9ce604da: return ".dec Objects";
+            case 0xacc2033e: return ".dsp Objects";
+            case 0xeae6beee: return ".ent Objects";
+            case 0x3bbcc4ec: return ".env Objects";
+            case 0x86621b1e: return ".flow Objects";
+            case 0x6222e06f: return ".flt Objects";
+            case 0x993811f5: return ".flt Objects";
+            case 0xc2fd0a11: return ".gameplay Objects";
+            case 0xaa63a508: return ".gate Objects";
+            case 0xc2aaec43: return ".grp Objects";
+            case 0xce7e85f6: return ".leaf Objects";
+            case 0x711a2715: return ".light Objects";
+            case 0xbcd17473: return ".lvl Objects";
+            case 0x490780b9: return ".master Objects";
+            case 0x1a5812f6: return ".mastering Objects";
+            case 0x7ba5c8e0: return ".mat Objects";
+            case 0xbf69f115: return ".mesh Objects";
+            case 0x1ba51443: return " GFX.objlib Objects";
+            case 0xb0954548: return " Sequin.objlib Objects";
+            case 0x9d1c6219: return " Obj.objlib Objects";
+            case 0x0b374d9e: return " Level.objlib Objects";
+            case 0xe674624f: return " Avatar.objlib Objects";
+            case 0x4890a3f6: return ".path Objects";
+            case 0x745dd78b: return ".playspace Objects";
+            case 0x230da622: return ".pulse Objects";
+            case 0x7aa8f390: return ".samp Objects";
+            case 0xd3058b5d: return ".sdraw / .drawer Objects";
+            case 0xcac934cf: return ".sh Objects";
+            case 0xd897d5db: return ".spn Objects";
+            case 0xd955fdc6: return ".st Objects";
+            case 0xe7b3aadb: return ".steer Objects";
+            case 0x96ba8a70: return ".tex Objects";
+            case 0x799c45a7: return ".vib Objects";
+            case 0x4f37349d: return ".vr_settings Objects";
+            case 0x7d9db5ef: return ".xfm / .xfmer Objects";
+            default: return "?";
+            }
+        };
+    
+        ImGui::LabelText("File Type", "%d", data.fileType);
+        ImGui::LabelText("ObjLib Type", "%08X (%s)", data.objlibType, hash_to_str(data.objlibType));
+        ImGui::LabelText("Unknown 00", "%u", data.unknown00);
+        ImGui::LabelText("Unknown 01", "%u", data.unknown01);
+        ImGui::LabelText("Unknown 02", "%u", data.unknown02);
+        ImGui::LabelText("Unknown 03", "%u", data.unknown03);
+        ImGui::LabelText("Library Import Count", "%u", data.libraryImports.size());
+
+        for (int i = 0; i < data.libraryImports.size(); ++i) {
+            auto& libraryImport = data.libraryImports[i];
+
+            ImGui::PushID(i);
+            ImGui::LabelText("Unknown 00", "%u", libraryImport.unknown00);
+            ImGui::LabelText("Import Name", "%s", libraryImport.importName.c_str());
+            ImGui::PopID();
+        }
+
+        ImGui::LabelText("File name origin", "%s", data.originName.c_str());
+        ImGui::LabelText("Object Import Count", "%u", data.objectImports.size());
+
+        for (int i = 0; i < data.objectImports.size(); ++i) {
+            auto& objImport = data.objectImports[i];
+
+            ImGui::PushID(i);
+            ImGui::LabelText("Type", "%08X (%s)", objImport.type, hash_to_str(objImport.type));
+            ImGui::LabelText("Object Name", "%s", objImport.objectName.c_str());
+            ImGui::LabelText("Unknown", "%u", objImport.unknown0);
+            ImGui::LabelText("Library Name", "%s", objImport.libraryName.c_str());
+            ImGui::PopID();
+        }
+
+        ImGui::LabelText("Object Declarations", "%u", data.objectDeclarations.size());
+
+        ImGui::PushID("object declarations");
+        for (int i = 0; i < data.objectDeclarations.size(); ++i) {
+            auto& objDeclaration = data.objectDeclarations[i];
+
+            
+            ImGui::PushID(i);
+            ImGui::LabelText("Type", "%08X (%s) [%d]", objDeclaration.type, hash_to_str(objDeclaration.type), i);
+
+            if(objDeclaration.found)
+                ImGui::LabelText("Name", "%s (0x%X)", objDeclaration.name.c_str(), objDeclaration.offset);
+            else
+                ImGui::LabelText("Name", "%s", objDeclaration.name.c_str());
+
+            ImGui::PopID();
+        }
+        ImGui::PopID();
+
+    }
+    ImGui::End();
+#endif
 
     if (ImGui::Begin("Thumper Level Editor v0.0.0.1", nullptr, ImGuiWindowFlags_MenuBar))
     {
