@@ -204,14 +204,17 @@ int main(int argc, char** argv) {
         glTextureParameteri(iconTexture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     }
 
-    // Difficulty ranking texture, Should be converted to an imgui table
-    GLuint diffTexture;
-    {
-        tcle::Image image("diff.png");
-        glCreateTextures(GL_TEXTURE_2D, 1, &diffTexture);
-        glTextureStorage2D(diffTexture, 1, GL_RGBA8, image.width(), image.height());
-        glTextureSubImage2D(diffTexture, 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
-        glTextureParameteri(diffTexture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    std::array<GLuint, 8> diffTextures{};
+
+    // Load difficulty texture
+    for (int i = 0; i < diffTextures.size(); ++i) {
+        std::string path = std::format("difficulty_icons/d{}.png", i);
+
+        tcle::Image image(path.c_str());
+        glCreateTextures(GL_TEXTURE_2D, 1, &diffTextures[i]);
+        glTextureStorage2D(diffTextures[i], 1, GL_RGBA8, image.width(), image.height());
+        glTextureSubImage2D(diffTextures[i], 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
+        glTextureParameteri(diffTextures[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     }
 
     imgui_init(window);
@@ -279,93 +282,132 @@ int main(int argc, char** argv) {
         about_panel(iconTexture, showAboutPanel);
 
         if (showDifficultyExplanation) {
-            if (ImGui::Begin("Difficulty Explanation", &showDifficultyExplanation, ImGuiWindowFlags_NoResize)) {
-                
-                //old image, replacing with table
-                //ImGui::Image((ImTextureID)(uintptr_t)diffTexture, ImGui::GetContentRegionAvail()); //remove and replace with table
-                if(ImGui::BeginTable("Difficulty Table", 3, ImGuiTableFlags_BordersInner | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX | !ImGuiTableFlags_Resizable))
-                {
-
+            if (ImGui::Begin("Difficulty Explanation", &showDifficultyExplanation, ImGuiWindowFlags_AlwaysAutoResize)) {
+                if(ImGui::BeginTable("Difficulty Table", 3, ImGuiTableFlags_BordersInner | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoSavedSettings)) {
                     //Set up the header columns
                     ImGui::TableNextRow();
+                    ImGui::PushStyleColor(ImGuiCol_Text, { 1.0f, 1.0f, 1.0f, 1.0f });
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0xFF808080);
                     ImGui::TableNextColumn();
-                    ImGui::TextUnformatted("Difficulty Rating");
+                    ImGui::TextUnformatted("Difficulty\nRating");
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("Description");
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("Icon");
 
+                    ImGui::PushStyleColor(ImGuiCol_Text, { 0.0f, 0.0f, 0.0f, 1.0f });
+
                     //D0
                     ImGui::TableNextRow();
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0xFFDBEFE2);
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("D0");
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("EASY. Equivalent to early game");
                     ImGui::TableNextColumn();
-                    //Place icon here
+                    ImGui::Image((ImTextureID)(uintptr_t)diffTextures[0], { 64.0f, 64.0f });
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF808080);
 
                     //D1
                     ImGui::TableNextRow();
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0xFF8ECFA9);
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("D1");
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("NORMAL. Ranging from mid-game to Level 9.");
                     ImGui::TableNextColumn();
-                    //Place icon here
+                    ImGui::Image((ImTextureID)(uintptr_t)diffTextures[1], { 64.0f, 64.0f });
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF808080);
 
                     //D2
                     ImGui::TableNextRow();
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0xFF99E7FF);
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("D2");
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("INTERMEDIATE. Ranging from 9+ to harder than base game.");
                     ImGui::TableNextColumn();
-                    //Place icon here
+                    ImGui::Image((ImTextureID)(uintptr_t)diffTextures[2], { 64.0f, 64.0f });
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF808080);
 
                     //D3
                     ImGui::TableNextRow();
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0xFFADCAFA);
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("D2");
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("HARD. Much harder than the base game, hindered sight-reading.");
                     ImGui::TableNextColumn();
-                    //Place icon here
+                    ImGui::Image((ImTextureID)(uintptr_t)diffTextures[3], { 64.0f, 64.0f });
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF808080);
 
                     //D4
                     ImGui::TableNextRow();
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0xFFC2C1FF);
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("D4");
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("DAUNTING. Further-hindered sight-reading, some input intensity.");
                     ImGui::TableNextColumn();
-                    //Place icon here
+                    ImGui::Image((ImTextureID)(uintptr_t)diffTextures[4], { 64.0f, 64.0f });
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF808080);
 
                     //D5
                     ImGui::TableNextRow();
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0xFF7072FF);
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("D5");
+
+                    ImGui::PushStyleColor(ImGuiCol_Text, { 1.0f, 1.0f, 1.0f, 1.0f });
+
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("EXTREME. Mostly input intensive, fast tempo, hindered sight reading.");
                     ImGui::TableNextColumn();
-                    //Place icon here
+                    ImGui::Image((ImTextureID)(uintptr_t)diffTextures[5], { 64.0f, 64.0f });
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF808080);
 
                     //D6
                     ImGui::TableNextRow();
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0xFF1013FD);
                     ImGui::TableNextColumn();
+                    ImGui::PushStyleColor(ImGuiCol_Text, { 0.0f, 0.0f, 0.0f, 1.0f });
                     ImGui::TextUnformatted("D6");
                     ImGui::TableNextColumn();
+                    ImGui::PushStyleColor(ImGuiCol_Text, { 1.0f, 1.0f, 1.0f, 1.0f });
                     ImGui::TextUnformatted("PAINFUL. Incredibly input intensive, barely sight readable.");
                     ImGui::TableNextColumn();
-                    //Place icon here
+                    ImGui::Image((ImTextureID)(uintptr_t)diffTextures[6], { 64.0f, 64.0f });
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF808080);
 
                     //D7
                     ImGui::TableNextRow();
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0xFF000000);
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("D7");
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted("EXCRUCIATING. Unreadable, lightning fast, crazily input intensive, relying only on muscle memory through practice.");
                     ImGui::TableNextColumn();
-                    //Place icon here
+                    ImGui::Image((ImTextureID)(uintptr_t)diffTextures[7], { 64.0f, 64.0f });
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF808080);
+
+                    // No checkpoints
+                    ImGui::TableNextRow();
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0xFF262626);
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("#");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("Indicates that the level has no checkpoints.");
+                    ImGui::TableNextColumn();
+
+                    // No checkpoints
+                    ImGui::TableNextRow();
+                    ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0xFF262626);
+                    ImGui::TableNextColumn();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted("Example: D4#");
+                    ImGui::TableNextColumn();
+
+                    ImGui::PopStyleColor(5);
 
                     ImGui::EndTable();
                 }
@@ -776,7 +818,10 @@ int main(int argc, char** argv) {
 		glfwSwapBuffers(window);
 	}
 
-    glDeleteTextures(1, &diffTexture);
+    for (auto& texture : diffTextures) {
+        glDeleteTextures(1, &texture);
+    }
+
     glDeleteTextures(1, &iconTexture);
 
     imgui_uninit();
