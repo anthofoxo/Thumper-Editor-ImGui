@@ -204,6 +204,19 @@ float read_f32(std::vector<char>& bytes, size_t& offset) {
     return val;
 }
 
+struct f32vec4 {
+    float r, g, b, a;
+};
+
+f32vec4 read_f32vec4(std::vector<char>& bytes, size_t& offset) {
+    f32vec4 val;
+    val.r = read_f32(bytes, offset);
+    val.g = read_f32(bytes, offset);
+    val.b = read_f32(bytes, offset);
+    val.a = read_f32(bytes, offset);
+    return val;
+}
+
 uint8_t read_u8(std::vector<char>& bytes, size_t& offset) {
     float val = *reinterpret_cast<uint8_t*>(bytes.data() + offset);
     offset += sizeof(uint8_t);
@@ -217,6 +230,8 @@ std::string read_str(std::vector<char>& bytes, size_t& offset) {
     offset += string.size();
     return string;
 }
+
+
 
 // This current definition can fully read all vanilla thumper levels
 struct ObjLibLeafDef final {
@@ -238,6 +253,9 @@ struct ObjLibLeafDef final {
                 break;
             case 2: // kTraitFloat
                 value = read_f32(bytes, offset);
+                break;
+            case 3: // kTraitColor
+                value = read_f32vec4(bytes, offset);
                 break;
             case 8: // kTraitAction
                 value = read_u8(bytes, offset);
