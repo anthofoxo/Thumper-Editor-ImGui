@@ -119,9 +119,9 @@ void imgui_init(GLFWwindow* window) {
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-    ImGui::StyleColorsClassic();
+    ImGui::StyleColorsDark();
 
     ImGuiStyle& style = ImGui::GetStyle();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -141,16 +141,45 @@ void imgui_uninit() {
     ImGui::DestroyContext();
 }
 
-int main(int argc, char** argv) {
-    // Read configs
-    std::optional<std::filesystem::path> thumperPath = std::nullopt;
+class Application final {
+public:
+    void init();
+    void uninit();
+    void run();
+    void update();
+public:
+    tcle::Window mWindow;
+    AudioEngine mAudioEngine;
+    bool mRunning = true;
 
+    GLuint mIconTexture = 0;
+    std::array<GLuint, 8> mDiffTextures{};
+
+    std::optional<std::filesystem::path> mThumperPath;
+
+    bool mShowHashPanel = false;
+    bool mShowAboutPanel = false;
+    bool mShowDifficultyExplanation = false;
+    bool mModMode = false;
+    bool mShowDearImGuiDemo = false;
+    bool mLeafEditorShown = false;
+    bool mLvlEditorShown = false;
+    bool mGateEditorShown = false;
+    bool mMasterEditorShown = false;
+    bool mWorkingFolderShown = false;
+    bool mSampleEditorShown = false;
+
+    std::vector<Level> mLevels;
+};
+
+void Application::init() {
+    // Read configs
     try {
         YAML::Node rootNode = YAML::LoadFile("config.yaml");
         std::string str = rootNode["path"].as<std::string>("");
 
         if (!str.empty()) {
-            thumperPath = std::filesystem::path(str);
+            mThumperPath = std::filesystem::path(str);
         }
     }
     catch (YAML::BadFile const&) {
@@ -159,12 +188,16 @@ int main(int argc, char** argv) {
     }
 
     // If invalid, request path
-    if (!thumperPath) {
-        thumperPath = select_directory_save();
-        if (!thumperPath) return EXIT_FAILURE;
+    if (!mThumperPath) {
+        mThumperPath = select_directory_save();
+
+        if (!mThumperPath) {
+            mRunning = false;
+            return;
+        }
     }
 
-    tcle::Window window({
+    mWindow = tcle::Window({
         .width = 1280,
         .height = 720,
         .title = "Thumper Mod Loader v2.0.0.0",
@@ -181,83 +214,81 @@ int main(int argc, char** argv) {
             .height = icon32.height(),
             .pixels = icon32.pixels(),
         };
-        
-        glfwSetWindowIcon(window, 1, &image);
+
+        glfwSetWindowIcon(mWindow, 1, &image);
     }
 
-    glfwShowWindow(window);
+    glfwShowWindow(mWindow);
 
-	glfwMakeContextCurrent(window);
+    glfwMakeContextCurrent(mWindow);
 
-	gladLoadGL(&glfwGetProcAddress);
+    gladLoadGL(&glfwGetProcAddress);
 
-    AudioEngine audioEngine;
-    audioEngine.init();
-    ma_engine_play_sound(&audioEngine.mEngine, "UIBoot.ogg", nullptr);
+    mAudioEngine.init();
+    ma_engine_play_sound(&mAudioEngine.mEngine, "UIBoot.ogg", nullptr);
 
     // Load larger icon, seen in the about panel
-    GLuint iconTexture;
     {
         tcle::Image image("thumper_modding_tool.png");
-        glCreateTextures(GL_TEXTURE_2D, 1, &iconTexture);
-        glTextureStorage2D(iconTexture, 1, GL_RGBA8, image.width(), image.height());
-        glTextureSubImage2D(iconTexture, 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
-        glTextureParameteri(iconTexture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glCreateTextures(GL_TEXTURE_2D, 1, &mIconTexture);
+        glTextureStorage2D(mIconTexture, 1, GL_RGBA8, image.width(), image.height());
+        glTextureSubImage2D(mIconTexture, 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
+        glTextureParameteri(mIconTexture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     }
 
-    std::array<GLuint, 8> diffTextures{};
-
     // Load difficulty texture
-    for (int i = 0; i < diffTextures.size(); ++i) {
+    for (int i = 0; i < mDiffTextures.size(); ++i) {
         std::string path = std::format("difficulty_icons/d{}.png", i);
 
         tcle::Image image(path.c_str());
-        glCreateTextures(GL_TEXTURE_2D, 1, &diffTextures[i]);
-        glTextureStorage2D(diffTextures[i], 1, GL_RGBA8, image.width(), image.height());
-        glTextureSubImage2D(diffTextures[i], 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
-        glTextureParameteri(diffTextures[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glCreateTextures(GL_TEXTURE_2D, 1, &mDiffTextures[i]);
+        glTextureStorage2D(mDiffTextures[i], 1, GL_RGBA8, image.width(), image.height());
+        glTextureSubImage2D(mDiffTextures[i], 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
+        glTextureParameteri(mDiffTextures[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     }
 
-    imgui_init(window);
-
-    bool showHashPanel = false;
-    bool showAboutPanel = false;
-    bool showDifficultyExplanation = false;
-    bool modMode = false;
-    bool showDearImGuiDemo = false;
-    bool secretEnabled = false;
-
-    //bools to control what editor panels are open. 
-    bool leafEditorShown = false;
-    bool lvlEditorShown = false;
-    bool gateEditorShown = false;
-    bool masterEditorShown = false;
-    bool workingFolderShown = false;
-    bool sampleEditorShown = false;
-
-    std::vector<Level> levels;
+    imgui_init(mWindow);
 
     for (auto& entry : std::filesystem::directory_iterator("levels")) {
         if (!entry.is_directory()) continue;
         std::filesystem::path path = entry.path() / "LEVEL DETAILS.txt";
         if (!std::filesystem::exists(path)) continue;
-    
+
         YAML::Node node = YAML::LoadFile(path_to_string(path));
 
-        levels.emplace_back(
+        mLevels.emplace_back(
             node["level_name"].as<std::string>(""),
             node["difficulty"].as<std::string>(""),
             node["description"].as<std::string>(""),
             node["author"].as<std::string>("")
         );
     }
+}
 
-    bool running = true;
+void Application::uninit() {
+    mRunning = false;
 
-	while (running) {
-		glfwPollEvents();
+    for (auto& texture : mDiffTextures) {
+        glDeleteTextures(1, &texture);
+    }
 
-        if (glfwWindowShouldClose(window)) running = false;
+    glDeleteTextures(1, &mIconTexture);
+
+    imgui_uninit();
+
+    glfwMakeContextCurrent(nullptr);
+
+    mWindow = {};
+    mAudioEngine.uninit();
+}
+
+void Application::run() {
+    init();
+
+    while (mRunning) {
+        glfwPollEvents();
+
+        if (glfwWindowShouldClose(mWindow)) mRunning = false;
 
 #ifdef TE_WINDOWS
         ImGui::GetIO().ConfigDebugIsDebuggerPresent = ::IsDebuggerPresent();
@@ -267,422 +298,15 @@ int main(int argc, char** argv) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        if (ImGui::BeginMainMenuBar()) {
-            if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("Exit", ImGui::GetKeyChordName(ImGuiMod_Alt | ImGuiKey_F4))) {
-                    running = false;
-                }
+        ImGui::DockSpaceOverViewport();
 
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("View")) {
-                ImGui::MenuItem("Dear ImGui Demo", nullptr, &showDearImGuiDemo);
-
-                ImGui::EndMenu();
-            }
-
-            ImGui::EndMainMenuBar();
-        }
-
-        if (ImGui::Begin("Debug")) {
-            std::string path = path_to_string(thumperPath.value());
-            ImGui::LabelText("Thumper Path", "%s", path.c_str());
-        }
-        ImGui::End();
-
-        hash_panel(showHashPanel);
-        about_panel(iconTexture, showAboutPanel);
-
-        tcle::gui_diff_table(showDifficultyExplanation, diffTextures);
-        
-        if(ImGui::Begin("Thumper Level Editor v0.0.0.1", nullptr, ImGuiWindowFlags_MenuBar))
-        {
-            if(ImGui::BeginMenuBar())
-            {
-                if(ImGui::BeginMenu("File"))
-                {
-                    if (ImGui::MenuItem("Save All", "CTRL+Q"))
-                    {
-                        //Save all changes made to the objlib
-                    }
-
-                    if (ImGui::MenuItem("Open Level...", "CTRL+P"))
-                    {
-                        //Open an objlib / level
-                    }
-
-                    if (ImGui::MenuItem("Recent Levels...", "CTRL+R"))
-                    {
-                        //Open list of recently opened levels, will initially be none on first startup
-                    }
-
-                    ImGui::Separator();
-
-                    if (ImGui::MenuItem("Open current level in explorer", "CTRL+E"))
-                    {
-                        //Open the currently opened level / objlib in file explorer
-                    }
-
-
-
-                    if (ImGui::BeginMenu("Leaf..."))
-                    {
-                        if (ImGui::MenuItem("New", "CTRL+N"))
-                        {
-                            //Create a new, empty leaf file
-                        }
-
-                        if (ImGui::MenuItem("Open", "CTRL+O"))
-                        {
-                            //Open an existing leaf file
-                        }
-
-                        if (ImGui::MenuItem("Save", "CTRL+S"))
-                        {
-                            //Save the currently open leaf file
-                        }
-
-                        if (ImGui::MenuItem("Save As...", "CTRL+A"))
-                        {
-                            //Save the currently open leaf file as a different name / separate file
-                        }
-
-                        if (ImGui::MenuItem("Open Template", "CTRL+T"))
-                        {
-                            //Open a pre-made template of a leaf file
-                        }
-
-                        ImGui::EndMenu();
-                    }
-
-
-
-                    if (ImGui::BeginMenu("LVL..."))
-                    {
-                        if(ImGui::MenuItem("New", "ALT+N"))
-                        {
-                            //Create a new, empty lvl file
-                        }
-
-                        if (ImGui::MenuItem("Open", "ALT+O"))
-                        {
-                            //Open an existing lvl file
-                        }
-
-                        if (ImGui::MenuItem("Save", "ALT+S"))
-                        {
-                            //Save the currently open lvl file
-                        }
-
-                        if (ImGui::MenuItem("Save As...", "ALT+A"))
-                        {
-                            //Save the currently open lvl file as a different name / separate file
-                        }
-
-                        ImGui::EndMenu();
-                    }
-
-
-
-                    if (ImGui::BeginMenu("Gate..."))
-                    {
-                        if (ImGui::MenuItem("New", "CTRL+SHIFT+N"))
-                        {
-                            //Create a new, empty gate file
-                        }
-
-                        if (ImGui::MenuItem("Open", "CTRL+SHIFT+O"))
-                        {
-                            //Open an existing gate file
-                        }
-
-                        if (ImGui::MenuItem("Save", "CTRL+SHIFT+S"))
-                        {
-                            //Save the currently open gate file
-                        }
-
-                        if (ImGui::MenuItem("Save As...", "CTRL+SHIFT+A"))
-                        {
-                            //Save the currently open gate file as a different name / separate file
-                        }
-
-                        ImGui::EndMenu();
-                    }
-
-
-
-                    if (ImGui::BeginMenu("Master..."))
-                    {
-                        if (ImGui::MenuItem("New", "CTRL+ALT+N"))
-                        {
-                            //Create a new, empty master sequence file
-                        }
-
-                        if (ImGui::MenuItem("Open", "CTRL+ALT+O"))
-                        {
-                            //Open an existing master sequence file
-                        }
-
-                        if (ImGui::MenuItem("Save", "CTRL+ALT+S"))
-                        {
-                            //Save the currently open master sequence file
-                        }
-
-                        if (ImGui::MenuItem("Save As...", "CTRL+ALT+A"))
-                        {
-                            //Save the currently open master sequence file as a different name / separate file
-                        }
-
-                        ImGui::EndMenu();
-                    }
-
-
-
-                    if (ImGui::BeginMenu("Sample..."))
-                    {
-                        if (ImGui::MenuItem("New", "ALT+SHIFT+N"))
-                        {
-                            //Create a new, empty .samp container file
-                        }
-
-                        if (ImGui::MenuItem("Open", "ALT+SHIFT+O"))
-                        {
-                            //Open an existing lvl .samp container file
-                        }
-
-                        if (ImGui::MenuItem("Save", "ALT+SHIFT+S"))
-                        {
-                            //Save the currently open .samp container file
-                        }
-
-                        if (ImGui::MenuItem("Save As...", "ALT+SHIFT+A"))
-                        {
-                            //Save the currently open .samp container file as a different name / separate file
-                        }
-
-                        ImGui::EndMenu();
-                    }
-
-                    ImGui::Separator();
-
-                    if(ImGui::MenuItem("New Level Folder", "CTRL+L"))       // Fill background of button light green to highlight
-                    {
-                        //Create a new project folder that contains all the files of the custom level.
-                    }
-
-                    if (ImGui::MenuItem("Edit Level Details"))       // Fill background of button light grey to highlight
-                    {
-                        //Create a new details file that stores info about the level - description, authors, bpm etc...
-                    }
-
-                    if (ImGui::MenuItem("Regenerate Default Files"))       // Fill background of button light grey to highlight.        
-                    {
-                        //No comment, I actually don't know what this does
-                    }
-
-                    if (ImGui::BeginMenu("Template files..."))
-                    {
-                        if (ImGui::MenuItem("Open folder"))
-                        {
-                            //Open the folder that contains leaf template files
-                        }
-
-                        if (ImGui::MenuItem("Regenerate files"))
-                        {
-                            //Probably regenerates the default template files if they got deleted by accident
-                        }
-
-                        ImGui::EndMenu();
-                    }
-
-                    ImGui::Separator();
-
-                    if(ImGui::MenuItem("Exit"))
-                    {
-                        //Probably not needed anymore, but originally closes the entire editor program. Could probably re-use this to close the currently open level.
-                    }
-
-
-
-
-
-
-
-
-
-
-
-
-                    ImGui::EndMenu();
-                }
-
-                if(ImGui::BeginMenu("Edit"))
-                {
-
-                    if (ImGui::MenuItem("Preferences..."))
-                    {
-                        /*
-                        
-                        This opens a separate window that allows you to:
-                        - change the default colors of the editor
-                            - menu color
-                            - master sequence color
-                            - lvl editor color
-                            - sample editor color
-                            - gate editor color
-                            - leaf editor color
-                            - active panel color
-                            - background color
-                            - default track object selected (would probably be removed later) and its param
-                        - audio
-                            - mute application audio
-                        - keybinds
-                            - every keybind. leaf new, leaf open, template.. everything. Includes a search function.
-                        
-                        */
-                    }
-
-                    ImGui::EndMenu();
-                }
-
-                if (ImGui::BeginMenu("View"))
-                {
-                    ImGui::MenuItem("Leaf Editor", NULL, &leafEditorShown);
-                    ImGui::MenuItem("Lvl Editor", NULL, &lvlEditorShown);
-                    ImGui::MenuItem("Gate Editor", NULL, &gateEditorShown);
-                    ImGui::MenuItem("Master Editor", NULL, &masterEditorShown);
-                    ImGui::MenuItem("Working Folder", NULL, &workingFolderShown);
-                    ImGui::MenuItem("Sample Editor", NULL, &sampleEditorShown);
-
-                    ImGui::EndMenu();
-                }
-
-                if (ImGui::BeginMenu("Window"))
-                {
-                    //No clue what this is.
-
-                    ImGui::EndMenu();
-                }
-
-                if (ImGui::BeginMenu("Help"))
-                {
-                    //Fill this in later because I cannot be bothered
-
-                    ImGui::EndMenu();
-                }
-
-                ImGui::EndMenuBar();
-            }
-        }
-        ImGui::End();
-
-        if (ImGui::Begin("Thumper Mod Loader v2.0.0.0", nullptr, ImGuiWindowFlags_MenuBar)) {
-
-            if (ImGui::BeginMenuBar()) {
-
-                if (ImGui::BeginMenu("Options")) {
-                    if (ImGui::MenuItem("Change Game Dir")) {
-                        if (auto path = select_directory_save()) thumperPath = path;
-                    }
-
-                    ImGui::MenuItem("Enable Sekrit", nullptr, &secretEnabled, true);
-
-                    ImGui::MenuItem("Hash Panel", nullptr, &showHashPanel);
-                    ImGui::MenuItem("[!!!] Reset Settings [!!!]", nullptr, nullptr, false);
-
-                    ImGui::EndMenu();
-                }
-
-                if (ImGui::BeginMenu("Help")) {
-                    ImGui::MenuItem("About...", nullptr, &showAboutPanel);
-                    if (ImGui::MenuItem("Discord Server", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                        ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://discord.com/invite/gTQbquY");
-                    }
-
-                    if (ImGui::MenuItem("Github", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                        ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://github.com/CocoaMix86/Thumper-Custom-Level-Editor");
-                    }
-
-                    if (ImGui::MenuItem("Donate & Tip (ko-fi)", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                        ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://ko-fi.com/cocoamix");
-                    }
-
-                    ImGui::EndMenu();
-                }
-
-                ImGui::EndMenuBar();
-            }
-
-           
-            ImGui::TextUnformatted("Mod Mode");
-            ImGui::SameLine();
-
-            if (modMode) {
-                ImGui::PushStyleColor(ImGuiCol_Button, { 154.0f / 255.0f, 205.0f / 255.0f , 50.0f / 255.0f, 1.0f });
-                if (ImGui::SmallButton("is ON")) modMode ^= true;
-            }
-            else {
-                ImGui::PushStyleColor(ImGuiCol_Button, { 64.0f/255.0f,0,0,1 });
-                if (ImGui::SmallButton("is OFF")) modMode ^= true;
-            }
-            ImGui::PopStyleColor();
-
-            
-            ImGui::BeginDisabled(!modMode);
-            ImGui::Button("Update Levels");
-            ImGui::EndDisabled();
-            ImGui::SetItemTooltip("%s", "Update Thumper with these levels and splash screen.\nAdding or removing levels requires a re-launch of the game.");
-        
-            ImGui::SeparatorText("Levels");
-            
-            if (ImGui::BeginTable("ModeLoaderLevlTable", 4, ImGuiTableFlags_BordersInner)) {
-
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                ImGui::TextUnformatted("Level Name");
-
-                ImGui::TableNextColumn();
-                ImGui::TextUnformatted("Difficulty");
-                ImGui::SameLine();
-                if (ImGui::SmallButton("?"))
-                    showDifficultyExplanation = true;
-
-                ImGui::TableNextColumn();
-                ImGui::TextUnformatted("Description");
-
-                ImGui::TableNextColumn();
-                ImGui::TextUnformatted("Author");
-
-                for (auto const& level : levels) {
-                    ImGui::TableNextRow();
-
-                    ImGui::TableNextColumn();
-                    ImGui::TextUnformatted(level.name.c_str());
-
-                    ImGui::TableNextColumn();
-                    ImGui::TextUnformatted(level.difficulty.c_str());
-
-                    ImGui::TableNextColumn();
-                    ImGui::TextUnformatted(level.description.c_str());
-
-                    ImGui::TableNextColumn();
-                    ImGui::TextUnformatted(level.author.c_str());
-                }
-
-                ImGui::EndTable();
-            }
-        }
-        ImGui::End();
-
-        if(showDearImGuiDemo)
-            ImGui::ShowDemoWindow(&showDearImGuiDemo);
+        update();
 
         ImGui::Render();
         int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
+        glfwGetFramebufferSize(mWindow, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        glClearColor(0.3f, 0.0f, 0.0f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -693,24 +317,413 @@ int main(int argc, char** argv) {
             glfwMakeContextCurrent(backup_current_context);
         }
 
-		glfwSwapBuffers(window);
-	}
-
-    running = false;
-
-    for (auto& texture : diffTextures) {
-        glDeleteTextures(1, &texture);
+        glfwSwapBuffers(mWindow);
     }
 
-    glDeleteTextures(1, &iconTexture);
+    uninit();
+}
 
-    imgui_uninit();
+void Application::update() {
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Exit", ImGui::GetKeyChordName(ImGuiMod_Alt | ImGuiKey_F4))) {
+                mRunning = false;
+            }
 
-	glfwMakeContextCurrent(nullptr);
-	
-    window = {};
+            ImGui::EndMenu();
+        }
 
-    audioEngine.uninit();
+        if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Dear ImGui Demo", nullptr, &mShowDearImGuiDemo);
 
-	return EXIT_SUCCESS;
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
+    }
+
+    if (ImGui::Begin("Debug")) {
+        std::string path = path_to_string(mThumperPath.value());
+        ImGui::LabelText("Thumper Path", "%s", path.c_str());
+    }
+    ImGui::End();
+
+    hash_panel(mShowHashPanel);
+    about_panel(mIconTexture, mShowAboutPanel);
+
+    tcle::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
+
+    if (ImGui::Begin("Thumper Level Editor v0.0.0.1", nullptr, ImGuiWindowFlags_MenuBar))
+    {
+        if (ImGui::BeginMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("Save All", "CTRL+Q"))
+                {
+                    //Save all changes made to the objlib
+                }
+
+                if (ImGui::MenuItem("Open Level...", "CTRL+P"))
+                {
+                    //Open an objlib / level
+                }
+
+                if (ImGui::MenuItem("Recent Levels...", "CTRL+R"))
+                {
+                    //Open list of recently opened levels, will initially be none on first startup
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Open current level in explorer", "CTRL+E"))
+                {
+                    //Open the currently opened level / objlib in file explorer
+                }
+
+
+
+                if (ImGui::BeginMenu("Leaf..."))
+                {
+                    if (ImGui::MenuItem("New", "CTRL+N"))
+                    {
+                        //Create a new, empty leaf file
+                    }
+
+                    if (ImGui::MenuItem("Open", "CTRL+O"))
+                    {
+                        //Open an existing leaf file
+                    }
+
+                    if (ImGui::MenuItem("Save", "CTRL+S"))
+                    {
+                        //Save the currently open leaf file
+                    }
+
+                    if (ImGui::MenuItem("Save As...", "CTRL+A"))
+                    {
+                        //Save the currently open leaf file as a different name / separate file
+                    }
+
+                    if (ImGui::MenuItem("Open Template", "CTRL+T"))
+                    {
+                        //Open a pre-made template of a leaf file
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+
+
+                if (ImGui::BeginMenu("LVL..."))
+                {
+                    if (ImGui::MenuItem("New", "ALT+N"))
+                    {
+                        //Create a new, empty lvl file
+                    }
+
+                    if (ImGui::MenuItem("Open", "ALT+O"))
+                    {
+                        //Open an existing lvl file
+                    }
+
+                    if (ImGui::MenuItem("Save", "ALT+S"))
+                    {
+                        //Save the currently open lvl file
+                    }
+
+                    if (ImGui::MenuItem("Save As...", "ALT+A"))
+                    {
+                        //Save the currently open lvl file as a different name / separate file
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+
+
+                if (ImGui::BeginMenu("Gate..."))
+                {
+                    if (ImGui::MenuItem("New", "CTRL+SHIFT+N"))
+                    {
+                        //Create a new, empty gate file
+                    }
+
+                    if (ImGui::MenuItem("Open", "CTRL+SHIFT+O"))
+                    {
+                        //Open an existing gate file
+                    }
+
+                    if (ImGui::MenuItem("Save", "CTRL+SHIFT+S"))
+                    {
+                        //Save the currently open gate file
+                    }
+
+                    if (ImGui::MenuItem("Save As...", "CTRL+SHIFT+A"))
+                    {
+                        //Save the currently open gate file as a different name / separate file
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+
+
+                if (ImGui::BeginMenu("Master..."))
+                {
+                    if (ImGui::MenuItem("New", "CTRL+ALT+N"))
+                    {
+                        //Create a new, empty master sequence file
+                    }
+
+                    if (ImGui::MenuItem("Open", "CTRL+ALT+O"))
+                    {
+                        //Open an existing master sequence file
+                    }
+
+                    if (ImGui::MenuItem("Save", "CTRL+ALT+S"))
+                    {
+                        //Save the currently open master sequence file
+                    }
+
+                    if (ImGui::MenuItem("Save As...", "CTRL+ALT+A"))
+                    {
+                        //Save the currently open master sequence file as a different name / separate file
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                if (ImGui::BeginMenu("Sample..."))
+                {
+                    if (ImGui::MenuItem("New", "ALT+SHIFT+N"))
+                    {
+                        //Create a new, empty .samp container file
+                    }
+
+                    if (ImGui::MenuItem("Open", "ALT+SHIFT+O"))
+                    {
+                        //Open an existing lvl .samp container file
+                    }
+
+                    if (ImGui::MenuItem("Save", "ALT+SHIFT+S"))
+                    {
+                        //Save the currently open .samp container file
+                    }
+
+                    if (ImGui::MenuItem("Save As...", "ALT+SHIFT+A"))
+                    {
+                        //Save the currently open .samp container file as a different name / separate file
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("New Level Folder", "CTRL+L"))       // Fill background of button light green to highlight
+                {
+                    //Create a new project folder that contains all the files of the custom level.
+                }
+
+                if (ImGui::MenuItem("Edit Level Details"))       // Fill background of button light grey to highlight
+                {
+                    //Create a new details file that stores info about the level - description, authors, bpm etc...
+                }
+
+                if (ImGui::MenuItem("Regenerate Default Files"))       // Fill background of button light grey to highlight.        
+                {
+                    //No comment, I actually don't know what this does
+                }
+
+                if (ImGui::BeginMenu("Template files..."))
+                {
+                    if (ImGui::MenuItem("Open folder"))
+                    {
+                        //Open the folder that contains leaf template files
+                    }
+
+                    if (ImGui::MenuItem("Regenerate files"))
+                    {
+                        //Probably regenerates the default template files if they got deleted by accident
+                    }
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Exit"))
+                {
+                    //Probably not needed anymore, but originally closes the entire editor program. Could probably re-use this to close the currently open level.
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Edit"))
+            {
+
+                if (ImGui::MenuItem("Preferences..."))
+                {
+                    /*
+
+                    This opens a separate window that allows you to:
+                    - change the default colors of the editor
+                        - menu color
+                        - master sequence color
+                        - lvl editor color
+                        - sample editor color
+                        - gate editor color
+                        - leaf editor color
+                        - active panel color
+                        - background color
+                        - default track object selected (would probably be removed later) and its param
+                    - audio
+                        - mute application audio
+                    - keybinds
+                        - every keybind. leaf new, leaf open, template.. everything. Includes a search function.
+
+                    */
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("View"))
+            {
+                ImGui::MenuItem("Leaf Editor", nullptr, &mLeafEditorShown);
+                ImGui::MenuItem("Lvl Editor", nullptr, &mLvlEditorShown);
+                ImGui::MenuItem("Gate Editor", nullptr, &mGateEditorShown);
+                ImGui::MenuItem("Master Editor", nullptr, &mMasterEditorShown);
+                ImGui::MenuItem("Working Folder", nullptr, &mWorkingFolderShown);
+                ImGui::MenuItem("Sample Editor", nullptr, &mSampleEditorShown);
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Window"))
+            {
+                //No clue what this is.
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Help"))
+            {
+                //Fill this in later because I cannot be bothered
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenuBar();
+        }
+    }
+    ImGui::End();
+
+    if (ImGui::Begin("Thumper Mod Loader v2.0.0.0", nullptr, ImGuiWindowFlags_MenuBar)) {
+
+        if (ImGui::BeginMenuBar()) {
+
+            if (ImGui::BeginMenu("Options")) {
+                if (ImGui::MenuItem("Change Game Dir")) {
+                    if (auto path = select_directory_save()) mThumperPath = path;
+                }
+
+
+                ImGui::MenuItem("Hash Panel", nullptr, &mShowHashPanel);
+                ImGui::MenuItem("[!!!] Reset Settings [!!!]", nullptr, nullptr, false);
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Help")) {
+                ImGui::MenuItem("About...", nullptr, &mShowAboutPanel);
+
+                if (ImGui::MenuItem("Discord Server", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
+                    ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://discord.com/invite/gTQbquY");
+                }
+
+                if (ImGui::MenuItem("Github", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
+                    ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://github.com/CocoaMix86/Thumper-Custom-Level-Editor");
+                }
+
+                if (ImGui::MenuItem("Donate & Tip (ko-fi)", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
+                    ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://ko-fi.com/cocoamix");
+                }
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMenuBar();
+        }
+
+
+        ImGui::TextUnformatted("Mod Mode");
+        ImGui::SameLine();
+
+        if (mModMode) {
+            ImGui::PushStyleColor(ImGuiCol_Button, { 154.0f / 255.0f, 205.0f / 255.0f , 50.0f / 255.0f, 1.0f });
+            if (ImGui::SmallButton("is ON")) mModMode ^= true;
+        }
+        else {
+            ImGui::PushStyleColor(ImGuiCol_Button, { 64.0f / 255.0f,0,0,1 });
+            if (ImGui::SmallButton("is OFF")) mModMode ^= true;
+        }
+        ImGui::PopStyleColor();
+
+
+        ImGui::BeginDisabled(!mModMode);
+        ImGui::Button("Update Levels");
+        ImGui::EndDisabled();
+        ImGui::SetItemTooltip("%s", "Update Thumper with these levels and splash screen.\nAdding or removing levels requires a re-launch of the game.");
+
+        ImGui::SeparatorText("Levels");
+
+        if (ImGui::BeginTable("ModeLoaderLevlTable", 4, ImGuiTableFlags_BordersInner)) {
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("Level Name");
+
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("Difficulty");
+            ImGui::SameLine();
+            if (ImGui::SmallButton("?"))
+                mShowDifficultyExplanation = true;
+
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("Description");
+
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("Author");
+
+            for (auto const& level : mLevels) {
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(level.name.c_str());
+
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(level.difficulty.c_str());
+
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(level.description.c_str());
+
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(level.author.c_str());
+            }
+
+            ImGui::EndTable();
+        }
+    }
+    ImGui::End();
+
+    if (mShowDearImGuiDemo) ImGui::ShowDemoWindow(&mShowDearImGuiDemo);
+}
+
+int main(int argc, char** argv) {
+    Application app;
+    app.run();
+    return EXIT_SUCCESS;
 }
