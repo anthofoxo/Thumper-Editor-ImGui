@@ -13,6 +13,7 @@
 
 #include <stb_image.h>
 #include <miniaudio.h>
+#include <iostream>
 
 #include <tinyfiledialogs.h>
 #include <yaml-cpp/yaml.h>
@@ -182,11 +183,20 @@ public:
     bool mWorkingFolderShown = false;
     bool mSampleEditorShown = false;
 
+    MemoryEditor mHexViewer;
+    bool mHexViewerOpened = false;
+    void* mHexPointer = nullptr;
+    size_t mHexSize = 0;
+
     std::vector<Level> mLevels;
 };
 
+uint32_t poke_u32(std::vector<char>& bytes, size_t& offset) {
+    return *reinterpret_cast<uint32_t*>(bytes.data() + offset);
+}
+
 uint32_t read_u32(std::vector<char>& bytes, size_t& offset) {
-    uint32_t val = *reinterpret_cast<uint32_t*>(bytes.data() + offset);
+    uint32_t val = poke_u32(bytes, offset);
     offset += sizeof(uint32_t);
     return val;
 }
@@ -236,6 +246,7 @@ std::string read_str(std::vector<char>& bytes, size_t& offset) {
 struct ObjLibLeafDef final {
     std::string leafname; // Not in packed binary format
     size_t offset; // Not in packed binary format
+    size_t lastOffset; // Not in packed binary format
 
     struct Datapoint final {
         float time;
@@ -358,12 +369,26 @@ struct ObjLibLeafDef final {
             traits[iTrait].read(bytes, offset);
         }
 
-        // Leaf footer, seems to be variable length??
-        // Can ignore for now
+        // Max number datapoints
+        uint32_t maxDatapoints = 0;
+        for (auto& trait : traits)
+            if (trait.datapoints.size() > maxDatapoints)maxDatapoints = trait.datapoints.size();
+
+        read_u32(bytes, offset);
+        uint32_t countUnknown = read_u32(bytes, offset);
+
+        offset += sizeof(uint32_t) * 3 * countUnknown; // Skip over these bytes
+        read_u32(bytes, offset);
+        read_u32(bytes, offset);
+        read_u32(bytes, offset);
+        
+        lastOffset = offset;
     }
 };
 
 struct ObjlibLevel final {
+    std::vector<char> binary;
+
     std::string name;
     std::vector<ObjLibLeafDef> leafs;
 };
@@ -423,6 +448,7 @@ void read_all_leafs(std::optional<std::filesystem::path> const& aThumperPath) {
 
         std::string path = std::format("{}/cache/{:x}.pc", path_to_string(aThumperPath.value()), tcle::hash(level));
         auto bytes = read_path_binary(path);
+        levelView.binary = bytes;
         size_t offset = 0;
 
         ParsedData data;
@@ -478,9 +504,9 @@ void read_all_leafs(std::optional<std::filesystem::path> const& aThumperPath) {
                     offset += header.size(); // advance past header
 
                     ObjLibLeafDef leaf;
-                    leaf.read(bytes, offset);
                     leaf.leafname = data.objectDeclarations[i].name;
                     leaf.offset = data.objectDeclarations[i].offset;
+                    leaf.read(bytes, offset);
 
                     levelView.leafs.push_back(std::move(leaf));
                 }
@@ -632,6 +658,9 @@ void read_all_leafs(std::optional<std::filesystem::path> const& aThumperPath) {
             }
 #endif
         }
+
+        // finished objlib, did we read all bytes?
+        std::cout << (bytes.size() - offset) << '\n';
 
 #if 0
         int notFoundCount = 0;
@@ -850,6 +879,20 @@ void Application::update() {
 
     tcle::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
 
+
+
+    if (mHexViewerOpened) {
+        if (ImGui::Begin("Hex Viewer", &mHexViewerOpened)) {
+            ImGui::PushFont(mFontMono);
+            mHexViewer.DrawContents(mHexPointer, mHexSize, 0);
+            ImGui::PopFont();
+        }
+        ImGui::End();
+    }
+    //   ImGui::Begin("MyWindow")
+    
+    //   ImGui::End();
+
     for (auto it = gLeafEditors.begin(); it != gLeafEditors.end();) {
         bool opened = true;
         auto& leaf = *(*it);
@@ -962,7 +1005,31 @@ void Application::update() {
                     if (ImGui::Button(leaf.leafname.c_str())) {
                         gLeafEditors.emplace(&leaf);
                     }
-                    ImGui::SetItemTooltip("Offset 0x%X", leaf.offset);
+
+                    if (ImGui::BeginPopupContextItem()) {
+                        ImGui::LabelText("Offset", "0x%x", leaf.offset);
+                        ImGui::LabelText("Last read offset", "0x%x", leaf.lastOffset);
+
+                        if (ImGui::Button("Open binary at offset")) {
+                            mHexViewerOpened = true;
+                            mHexPointer = level.binary.data();
+                            mHexSize = level.binary.size();
+                            mHexViewer.GotoAddr = leaf.offset;
+
+                            ImGui::CloseCurrentPopup();
+                        }
+                        if (ImGui::Button("Open binary at last offset")) {
+                            mHexViewerOpened = true;
+                            mHexPointer = level.binary.data();
+                            mHexSize = level.binary.size();
+                            mHexViewer.GotoAddr = leaf.lastOffset;
+
+                            ImGui::CloseCurrentPopup();
+                        }
+                            
+                        ImGui::EndPopup();
+                    }
+                    
                 }
             }
         }
