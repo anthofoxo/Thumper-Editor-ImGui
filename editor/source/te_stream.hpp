@@ -28,6 +28,7 @@ namespace tcle {
 		inline int32_t poke_s32() const { return *reinterpret_cast<int32_t const*>(head()); }
 		inline uint32_t poke_u32() const { return *reinterpret_cast<uint32_t const*>(head()); }
 		inline float poke_f32() const { return *reinterpret_cast<float const*>(head()); }
+		inline u32vec3 poke_u32vec3() { return *reinterpret_cast<u32vec3 const*>(head()); }
 		inline f32vec3 poke_f32vec3() { return *reinterpret_cast<f32vec3 const*>(head()); }
 		inline f32vec4 poke_f32vec4() { return *reinterpret_cast<f32vec4 const*>(head()); }
 		
@@ -38,6 +39,7 @@ namespace tcle {
 		inline int32_t read_s32() { auto val = poke_s32(); advance(sizeof(int32_t)); return val; }
 		inline uint32_t read_u32() { auto val = poke_u32(); advance(sizeof(uint32_t)); return val; }
 		inline float read_f32() { auto val = poke_f32(); advance(sizeof(float)); return val; }
+		inline u32vec3 read_u32vec3() { auto val = poke_u32vec3(); advance(sizeof(u32vec3)); return val; }
 		inline f32vec3 read_f32vec3() { auto val = poke_f32vec3(); advance(sizeof(f32vec3)); return val; }
 		inline f32vec4 read_f32vec4() { auto val = poke_f32vec4(); advance(sizeof(f32vec4)); return val; }
 
