@@ -9,6 +9,7 @@
 #include "te_window.hpp"
 #include "te_image.hpp"
 #include "te_diff_table.hpp"
+#include "te_hash.hpp"
 
 #include <stb_image.h>
 #include <miniaudio.h>
@@ -23,6 +24,7 @@
 #include <misc/cpp/imgui_stdlib.h>
 #include <imgui_memory_editor.h>
 
+#include <unordered_set>
 #include <cstdlib> // EXIT_SUCCESS, EXIT_FAILURE
 #include <stdio.h>
 #include <string>
@@ -39,35 +41,32 @@ struct Level {
     std::string author;
 };
 
-uint32_t hash32(unsigned char const* array, unsigned int size) {
-    uint32_t h = 0x811c9dc5;
-
-    while (size > 0) {
-        size--;
-        h = (h ^ *array) * 0x1000193;
-        array++;
-    }
-
-    h *= 0x2001;
-    h = (h ^ (h >> 0x7)) * 0x9;
-    h = (h ^ (h >> 0x11)) * 0x21;
-
-    return h;
-}
-
-uint32_t hash32(std::string const& str) {
-    return hash32((unsigned char const*)str.data(), static_cast<unsigned int>(str.size()));
-}
-
 void hash_panel(bool& open) {
     static std::string input = "type input here";
-    static uint32_t hash = hash32(input);
+    static uint32_t hash = tcle::hash(input);
+
+    static std::string revinput = "00000000";
+    static std::string revoutput = "?";
 
     if (!open) return;
 
     if (ImGui::Begin("Hash Panel", &open)) {
-        if (ImGui::InputText("Input", &input)) hash = hash32(input);
+        ImGui::SeparatorText("Hash");
+        if (ImGui::InputText("Input", &input)) hash = tcle::hash(input);
         ImGui::Text("0x%02x", hash);
+
+        ImGui::SeparatorText("Reverse Hash");
+        if (ImGui::InputText("Hash", &revinput)) {
+            try {
+                unsigned int hashtarget = std::stoul(revinput, 0, 16);
+                revoutput = tcle::rev_hash(hashtarget);
+            }
+            catch (...) {
+                revoutput = "Invalid input";
+            }
+            
+        }
+        ImGui::Text("%s", revoutput.c_str());
     }
     ImGui::End();
 }
@@ -218,7 +217,7 @@ f32vec4 read_f32vec4(std::vector<char>& bytes, size_t& offset) {
 }
 
 uint8_t read_u8(std::vector<char>& bytes, size_t& offset) {
-    float val = *reinterpret_cast<uint8_t*>(bytes.data() + offset);
+    uint8_t val = *reinterpret_cast<uint8_t*>(bytes.data() + offset);
     offset += sizeof(uint8_t);
     return val;
 }
@@ -422,7 +421,7 @@ void read_all_leafs(std::optional<std::filesystem::path> const& aThumperPath) {
     for (auto const& level : levels) {
         ObjlibLevel levelView;
 
-        std::string path = std::format("{}/cache/{:x}.pc", path_to_string(aThumperPath.value()), hash32(level));
+        std::string path = std::format("{}/cache/{:x}.pc", path_to_string(aThumperPath.value()), tcle::hash(level));
         auto bytes = read_path_binary(path);
         size_t offset = 0;
 
@@ -656,6 +655,8 @@ void read_all_leafs(std::optional<std::filesystem::path> const& aThumperPath) {
     }
 }
 
+std::unordered_set<ObjLibLeafDef*> gLeafEditors;
+
 void Application::init() {
     // Read configs
     try {
@@ -813,6 +814,10 @@ void Application::run() {
     uninit();
 }
 
+float map(float value, float min1, float max1, float min2, float max2) {
+    return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
+}
+
 void Application::update() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
@@ -824,6 +829,8 @@ void Application::update() {
         }
 
         if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Hash Panel", nullptr, &mShowHashPanel);
+            ImGui::Separator();
             ImGui::MenuItem("Dear ImGui Demo", nullptr, &mShowDearImGuiDemo);
 
             ImGui::EndMenu();
@@ -843,11 +850,118 @@ void Application::update() {
 
     tcle::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
 
+    for (auto it = gLeafEditors.begin(); it != gLeafEditors.end();) {
+        bool opened = true;
+        auto& leaf = *(*it);
+
+        ImGui::SetNextWindowSize({ 640.0f, 480.0f }, ImGuiCond_FirstUseEver);
+
+        if (ImGui::Begin(leaf.leafname.c_str(), &opened)) {
+            int maxDataPoints = 0;
+
+            for (auto& trait : leaf.traits) {
+                if (trait.datapoints.size() > maxDataPoints) maxDataPoints = trait.datapoints.size();
+            }
+                
+            if (ImGui::BeginTable(leaf.leafname.c_str(), maxDataPoints + 1, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollX)) {
+                ImGui::TableSetupScrollFreeze(1, 1);
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TableHeader("Trait (Selector)");
+
+                for (int i = 0; i < maxDataPoints; ++i) {
+                    std::string s = std::to_string(i);
+                    ImGui::TableNextColumn();
+                    ImGui::TableHeader(s.c_str());
+                }
+
+                for (auto& trait : leaf.traits) {
+                    
+
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+
+                    std::string name = std::format("{} ({:s})", trait.traitName, tcle::rev_hash(trait.param).c_str());
+                    ImGui::TableHeader(name.c_str());
+
+                    int idx = 0;
+                    for (int i = 0; i < maxDataPoints; ++i) {
+                        ImGui::TableNextColumn();
+
+                        if (idx >= trait.datapoints.size()) continue;
+
+                        auto& datapoint = trait.datapoints[idx];
+                        if (std::abs(datapoint.time - static_cast<float>(i)) < 0.1f) {
+                            ++idx;
+
+                            int editorDatapointIdx = -1;
+                       
+                            for (int iEditorData = 0; iEditorData < trait.editorDatapoints.size(); iEditorData += 2) {
+                                auto& start = trait.editorDatapoints[iEditorData];
+                                auto& end = trait.editorDatapoints[iEditorData + 1];
+
+                                if (datapoint.time >= start.time && datapoint.time <= end.time) {
+
+                                    editorDatapointIdx = iEditorData;
+                                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF003F00);
+
+                                    break;
+                                }
+                            }
+
+                          
+                                
+
+                            if (trait.trait == 2) {
+                                float val = std::any_cast<float>(datapoint.value);
+                                ImGui::PushStyleColor(ImGuiCol_Text, std::abs(val) > 0.01f ? ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } : ImVec4{ 0.5f, 0.5f, 0.5f, 1.0f });
+                                ImGui::Text("%.2f", std::any_cast<float>(datapoint.value));
+                                ImGui::PopStyleColor();
+                            }
+                            else if (trait.trait == 8 || trait.trait == 1) {
+                                bool val = std::any_cast<uint8_t>(datapoint.value);
+                                ImGui::PushStyleColor(ImGuiCol_Text, val ? ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } : ImVec4{ 0.5f, 0.5f, 0.5f, 1.0f });
+                                ImGui::Text("%s", val ? "true" : "false");
+                                ImGui::PopStyleColor();
+                            }
+                            else
+                                ImGui::TextUnformatted("?");
+
+                           
+
+                            std::string str = std::format("Relative Offset: {:.1f}\nInterpolation: {}\nEasing: {}", datapoint.time - static_cast<float>(i), datapoint.interpolation, datapoint.easing);
+
+                            ImGui::SetItemTooltip("%s", str.c_str());
+                        }
+                        else {
+                            // Empty
+                        }
+                    }
+                }
+
+                ImGui::EndTable();
+            }
+            
+
+        }
+        ImGui::End();
+
+        if (opened) {
+            ++it;
+        }
+        else {
+            it = gLeafEditors.erase(it);
+        }
+    }
+
     if (ImGui::Begin("Level Leafs")) {
         for (auto& level : gLevels) {
             if (ImGui::CollapsingHeader(level.name.c_str())) {
                 for (auto& leaf : level.leafs) {
-                    ImGui::Button(leaf.leafname.c_str());
+                    if (ImGui::Button(leaf.leafname.c_str())) {
+                        gLeafEditors.emplace(&leaf);
+                    }
                     ImGui::SetItemTooltip("Offset 0x%X", leaf.offset);
                 }
             }
@@ -857,54 +971,6 @@ void Application::update() {
                 
     
 #if 0
-        auto hash_to_str = [](uint32_t hash) -> char const* {
-            switch (hash) {
-            case 0x5232f8f9: return ".anim Objects";
-            case 0x7dd6b7d8: return ".bend Objects";
-            case 0x570e17fa: return ".bind Objects";
-            case 0x8f86650f: return ".cam Objects";
-            case 0xadb02913: return ".ch Objects";
-            case 0x4945e860: return ".cond Objects";
-            case 0xac1abb2c: return ".dch Objects";
-            case 0x9ce604da: return ".dec Objects";
-            case 0xacc2033e: return ".dsp Objects";
-            case 0xeae6beee: return ".ent Objects";
-            case 0x3bbcc4ec: return ".env Objects";
-            case 0x86621b1e: return ".flow Objects";
-            case 0x6222e06f: return ".flt Objects";
-            case 0x993811f5: return ".flt Objects";
-            case 0xc2fd0a11: return ".gameplay Objects";
-            case 0xaa63a508: return ".gate Objects";
-            case 0xc2aaec43: return ".grp Objects";
-            case 0xce7e85f6: return ".leaf Objects";
-            case 0x711a2715: return ".light Objects";
-            case 0xbcd17473: return ".lvl Objects";
-            case 0x490780b9: return ".master Objects";
-            case 0x1a5812f6: return ".mastering Objects";
-            case 0x7ba5c8e0: return ".mat Objects";
-            case 0xbf69f115: return ".mesh Objects";
-            case 0x1ba51443: return " GFX.objlib Objects";
-            case 0xb0954548: return " Sequin.objlib Objects";
-            case 0x9d1c6219: return " Obj.objlib Objects";
-            case 0x0b374d9e: return " Level.objlib Objects";
-            case 0xe674624f: return " Avatar.objlib Objects";
-            case 0x4890a3f6: return ".path Objects";
-            case 0x745dd78b: return ".playspace Objects";
-            case 0x230da622: return ".pulse Objects";
-            case 0x7aa8f390: return ".samp Objects";
-            case 0xd3058b5d: return ".sdraw / .drawer Objects";
-            case 0xcac934cf: return ".sh Objects";
-            case 0xd897d5db: return ".spn Objects";
-            case 0xd955fdc6: return ".st Objects";
-            case 0xe7b3aadb: return ".steer Objects";
-            case 0x96ba8a70: return ".tex Objects";
-            case 0x799c45a7: return ".vib Objects";
-            case 0x4f37349d: return ".vr_settings Objects";
-            case 0x7d9db5ef: return ".xfm / .xfmer Objects";
-            default: return "?";
-            }
-        };
-    
         ImGui::LabelText("File Type", "%d", data.fileType);
         ImGui::LabelText("ObjLib Type", "%08X (%s)", data.objlibType, hash_to_str(data.objlibType));
         ImGui::LabelText("Unknown 00", "%u", data.unknown00);
@@ -1236,8 +1302,6 @@ void Application::update() {
                     if (auto path = select_directory_save()) mThumperPath = path;
                 }
 
-
-                ImGui::MenuItem("Hash Panel", nullptr, &mShowHashPanel);
                 ImGui::MenuItem("[!!!] Reset Settings [!!!]", nullptr, nullptr, false);
 
                 ImGui::EndMenu();
