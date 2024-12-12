@@ -5,10 +5,12 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
+#include "te_hash.hpp"
 #include "te_audio.hpp"
 #include "te_window.hpp"
 #include "te_image.hpp"
 #include "te_diff_table.hpp"
+#include "te_structs.hpp"
 
 #include <stb_image.h>
 #include <miniaudio.h>
@@ -22,6 +24,7 @@
 #include <backends/imgui_impl_opengl3.h>
 #include <misc/cpp/imgui_stdlib.h>
 
+#include <iostream>
 #include <cstdlib> // EXIT_SUCCESS, EXIT_FAILURE
 #include <stdio.h>
 #include <string>
@@ -37,34 +40,15 @@ struct Level {
     std::string author;
 };
 
-uint32_t hash32(unsigned char const* array, unsigned int size) {
-    uint32_t h = 0x811c9dc5;
-
-    while (size > 0) {
-        size--;
-        h = (h ^ *array) * 0x1000193;
-        array++;
-    }
-
-    h *= 0x2001;
-    h = (h ^ (h >> 0x7)) * 0x9;
-    h = (h ^ (h >> 0x11)) * 0x21;
-
-    return h;
-}
-
-uint32_t hash32(std::string const& str) {
-    return hash32((unsigned char const*)str.data(), static_cast<unsigned int>(str.size()));
-}
 
 void hash_panel(bool& open) {
     static std::string input = "type input here";
-    static uint32_t hash = hash32(input);
+    static uint32_t hash = tcle::hash(input);
 
     if (!open) return;
 
     if (ImGui::Begin("Hash Panel", &open)) {
-        if (ImGui::InputText("Input", &input)) hash = hash32(input);
+        if (ImGui::InputText("Input", &input)) hash = tcle::hash(input);
         ImGui::Text("0x%02x", hash);
     }
     ImGui::End();
@@ -139,6 +123,34 @@ void imgui_uninit() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+}
+
+std::vector<tcle::ObjlibLevel> gLevels;
+
+void read_all_leafs(std::optional<std::filesystem::path> const& aThumperPath) {
+    std::string_view paths[] = {
+        "Alevels/title_screen.objlib",
+        "Alevels/demo.objlib",
+        "Alevels/level2/level_2a.objlib",
+        "Alevels/level3/level_3a.objlib",
+        "Alevels/level4/level_4a.objlib",
+        "Alevels/level5/level_5a.objlib",
+        "Alevels/level6/level_6.objlib",
+        "Alevels/level7/level_7a.objlib",
+        "Alevels/level8/level_8a.objlib",
+        "Alevels/level9/level_9a.objlib",
+    };
+
+    for (auto const& pathUnhashed : paths) {
+        std::string path = std::format("{}/cache/{:x}.pc", path_to_string(aThumperPath.value()), tcle::hash(pathUnhashed));
+
+        tcle::ByteStream stream = tcle::ByteStream(path);
+        tcle::ObjlibLevel level;
+        level.deserialize(stream);
+        level._bytes = std::move(stream.mData);
+
+        gLevels.push_back(std::move(level));
+    }
 }
 
 class Application final {
@@ -263,6 +275,10 @@ void Application::init() {
             node["author"].as<std::string>("")
         );
     }
+
+    read_all_leafs(mThumperPath);
+
+    std::cout << "Done...\n";
 }
 
 void Application::uninit() {

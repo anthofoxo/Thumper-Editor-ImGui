@@ -78,8 +78,6 @@ namespace tcle {
     }
 
     void Leaf::deserialize(ByteStream& aStream) {
-        _offset = aStream.mOffset;
-
         for(int i = 0; i < 4; ++i)
             header[i] = aStream.read_u32();
 
@@ -115,7 +113,7 @@ namespace tcle {
         filetype = aStream.read_u32();
         assert(filetype == 0x8);
         objlibType = aStream.read_u32();
-        assert(objlibType == 0x19621c9d);
+        assert(objlibType == 0x0b374d9e);
 
         unknown0 = aStream.read_u32();
         unknown1 = aStream.read_u32();
@@ -152,7 +150,7 @@ namespace tcle {
             // Leaf
             if (declaration.type == 0xce7e85f6) {
                 uint32_t header[]{ 0x22, 0x21, 0x04, 0x02 };
-                auto headerBytes = std::as_bytes(std::span(header));
+                auto headerBytes = std::span<char>(reinterpret_cast<char*>(std::addressof(header)), sizeof(header));
 
                 auto it = std::search(aStream.mData.begin() + aStream.mOffset, aStream.mData.end(), headerBytes.begin(), headerBytes.end());
                 if (it != aStream.mData.end()) {
