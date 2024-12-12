@@ -1,4 +1,4 @@
-project "thumper_editor"
+project "aurora"
 debugdir "../working"
 kind "ConsoleApp"
 

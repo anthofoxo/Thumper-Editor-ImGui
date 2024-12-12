@@ -1,8 +1,8 @@
 -- Thumper Editor
-workspace "thumper_editor"
+workspace "aurora"
 architecture "x86_64"
 configurations { "debug", "release" }
-startproject "thumper_editor"
+startproject "aurora"
 
 flags "MultiProcessorCompile"
 language "C++"
@@ -42,4 +42,4 @@ for _, matchedfile in ipairs(os.matchfiles("premake/*.lua")) do
 end
 group ""
 
-include "editor/build.lua"
+include "aurora/build.lua"

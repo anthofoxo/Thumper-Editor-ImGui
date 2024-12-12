@@ -5,7 +5,7 @@
 #include <any>
 #include <string>
 
-namespace tcle {
+namespace aurora {
 	struct Datapoint final {
 		float time;
 		std::any value;

@@ -7,7 +7,7 @@ namespace {
 	int gWindowCount = 0;
 }
 
-namespace tcle {	
+namespace aurora {
 	Window::Window(CreateInfo const& aInfo) {
 		if (gWindowCount == 0) {
 			glfwSetErrorCallback([](int aErrorCode, char const* aDescription) {

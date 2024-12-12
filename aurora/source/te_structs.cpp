@@ -4,7 +4,7 @@
 #include <span>
 #include <iostream>
 
-namespace tcle {
+namespace aurora {
 	void Datapoint::deserialize(ByteStream& aStream, uint32_t aDatatype) {
 		time = aStream.read_f32();
 

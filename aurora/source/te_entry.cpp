@@ -44,12 +44,12 @@ struct Level {
 
 void hash_panel(bool& open) {
     static std::string input = "type input here";
-    static uint32_t hash = tcle::hash(input);
+    static uint32_t hash = aurora::hash(input);
 
     if (!open) return;
 
     if (ImGui::Begin("Hash Panel", &open)) {
-        if (ImGui::InputText("Input", &input)) hash = tcle::hash(input);
+        if (ImGui::InputText("Input", &input)) hash = aurora::hash(input);
         ImGui::Text("0x%02x", hash);
     }
     ImGui::End();
@@ -126,7 +126,7 @@ void imgui_uninit() {
     ImGui::DestroyContext();
 }
 
-std::vector<tcle::ObjlibLevel> gLevels;
+std::vector<aurora::ObjlibLevel> gLevels;
 
 void read_all_leafs(std::optional<std::filesystem::path> const& aThumperPath) {
     std::string_view paths[] = {
@@ -143,10 +143,10 @@ void read_all_leafs(std::optional<std::filesystem::path> const& aThumperPath) {
     };
 
     for (auto const& pathUnhashed : paths) {
-        std::string path = std::format("{}/cache/{:x}.pc", path_to_string(aThumperPath.value()), tcle::hash(pathUnhashed));
+        std::string path = std::format("{}/cache/{:x}.pc", path_to_string(aThumperPath.value()), aurora::hash(pathUnhashed));
 
-        tcle::ByteStream stream = tcle::ByteStream(path);
-        tcle::ObjlibLevel level;
+        aurora::ByteStream stream = aurora::ByteStream(path);
+        aurora::ObjlibLevel level;
         level.deserialize(stream);
         level._bytes = std::move(stream.mData);
 
@@ -161,8 +161,8 @@ public:
     void run();
     void update();
 public:
-    tcle::Window mWindow;
-    AudioEngine mAudioEngine;
+    aurora::Window mWindow;
+    aurora::AudioEngine mAudioEngine;
     bool mRunning = true;
     ImFont* mMonoFont = nullptr;
 
@@ -211,10 +211,10 @@ void Application::init() {
         }
     }
 
-    mWindow = tcle::Window({
+    mWindow = aurora::Window({
         .width = 1280,
         .height = 720,
-        .title = "Thumper Mod Loader v2.0.0.0",
+        .title = "Aurora v0.0.4 Indev",
 
         .maximized = true,
         .visible = false,
@@ -222,7 +222,7 @@ void Application::init() {
 
     // Set window icon
     {
-        tcle::Image icon32("thumper_modding_tool_32.png");
+        aurora::Image icon32("thumper_modding_tool_32.png");
         GLFWimage image{
             .width = icon32.width(),
             .height = icon32.height(),
@@ -243,7 +243,7 @@ void Application::init() {
 
     // Load larger icon, seen in the about panel
     {
-        tcle::Image image("thumper_modding_tool.png");
+        aurora::Image image("thumper_modding_tool.png");
         glCreateTextures(GL_TEXTURE_2D, 1, &mIconTexture);
         glTextureStorage2D(mIconTexture, 1, GL_RGBA8, image.width(), image.height());
         glTextureSubImage2D(mIconTexture, 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
@@ -254,7 +254,7 @@ void Application::init() {
     for (int i = 0; i < mDiffTextures.size(); ++i) {
         std::string path = std::format("difficulty_icons/d{}.png", i);
 
-        tcle::Image image(path.c_str());
+        aurora::Image image(path.c_str());
         glCreateTextures(GL_TEXTURE_2D, 1, &mDiffTextures[i]);
         glTextureStorage2D(mDiffTextures[i], 1, GL_RGBA8, image.width(), image.height());
         glTextureSubImage2D(mDiffTextures[i], 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
@@ -280,8 +280,6 @@ void Application::init() {
     }
 
     read_all_leafs(mThumperPath);
-
-    std::cout << "Done...\n";
 }
 
 void Application::uninit() {
@@ -353,7 +351,27 @@ void Application::update() {
         }
 
         if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Hash Panel", nullptr, &mShowHashPanel);
+            ImGui::Separator();
             ImGui::MenuItem("Dear ImGui Demo", nullptr, &mShowDearImGuiDemo);
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Help")) {
+            ImGui::MenuItem("About", nullptr, &mShowAboutPanel);
+
+            if (ImGui::MenuItem("Discord Server", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
+                ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://discord.com/invite/gTQbquY");
+            }
+
+            if (ImGui::MenuItem("Github", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
+                ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://github.com/CocoaMix86/Thumper-Custom-Level-Editor");
+            }
+
+            if (ImGui::MenuItem("Donate & Tip (ko-fi)", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
+                ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://ko-fi.com/cocoamix");
+            }
 
             ImGui::EndMenu();
         }
@@ -371,7 +389,7 @@ void Application::update() {
     about_panel(mIconTexture, mShowAboutPanel);
 
     
-    static tcle::Leaf* pLeaf = nullptr;
+    static aurora::Leaf* pLeaf = nullptr;
     static std::string title;
     
     static MemoryEditor mem_edit_2;
@@ -498,9 +516,9 @@ void Application::update() {
                     std::string name;
 
                     if (trait.object == pLeaf->_declaredName)
-                        name = tcle::rev_hash(trait.selector);
+                        name = aurora::rev_hash(trait.selector);
                     else
-                        name = std::format("{}:{}", trait.object, tcle::rev_hash(trait.selector).c_str());
+                        name = std::format("{}:{}", trait.object, aurora::rev_hash(trait.selector).c_str());
 
                     ImGui::TableHeader(name.c_str());
 
@@ -609,7 +627,7 @@ void Application::update() {
     }
     
 
-    tcle::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
+    aurora::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
 
     if (ImGui::Begin("Thumper Level Editor v0.0.0.1", nullptr, ImGuiWindowFlags_MenuBar))
     {
@@ -888,34 +906,13 @@ void Application::update() {
                     if (auto path = select_directory_save()) mThumperPath = path;
                 }
 
-
-                ImGui::MenuItem("Hash Panel", nullptr, &mShowHashPanel);
                 ImGui::MenuItem("[!!!] Reset Settings [!!!]", nullptr, nullptr, false);
-
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Help")) {
-                ImGui::MenuItem("About...", nullptr, &mShowAboutPanel);
-
-                if (ImGui::MenuItem("Discord Server", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                    ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://discord.com/invite/gTQbquY");
-                }
-
-                if (ImGui::MenuItem("Github", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                    ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://github.com/CocoaMix86/Thumper-Custom-Level-Editor");
-                }
-
-                if (ImGui::MenuItem("Donate & Tip (ko-fi)", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                    ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://ko-fi.com/cocoamix");
-                }
 
                 ImGui::EndMenu();
             }
 
             ImGui::EndMenuBar();
         }
-
 
         ImGui::TextUnformatted("Mod Mode");
         ImGui::SameLine();

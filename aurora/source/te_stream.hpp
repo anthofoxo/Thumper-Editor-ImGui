@@ -10,7 +10,7 @@
 #include <string>
 #include <fstream>
 
-namespace tcle {
+namespace aurora {
 	struct ByteStream final {
 		ByteStream() = default;
 		ByteStream(std::filesystem::path const& aPath) {

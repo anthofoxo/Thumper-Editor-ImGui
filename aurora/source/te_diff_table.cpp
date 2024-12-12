@@ -2,7 +2,7 @@
 
 #include <imgui.h>
 
-namespace tcle {
+namespace aurora {
 	void gui_diff_table(bool& aOpen, std::array<GLuint, 8> const& aDiffTextures) {
         constexpr ImVec4 kBlack{ 0.0f, 0.0f, 0.0f, 1.0f };
         constexpr ImVec4 kWhite{ 1.0f, 1.0f, 1.0f, 1.0f };

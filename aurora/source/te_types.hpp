@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace tcle {
+namespace aurora {
 	struct u32vec3 final {
 		union { uint32_t x, r; };
 		union { uint32_t y, g; };
