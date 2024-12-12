@@ -78,6 +78,8 @@ namespace tcle {
     }
 
     void Leaf::deserialize(ByteStream& aStream) {
+        _beginOffset = aStream.mOffset;
+
         for(int i = 0; i < 4; ++i)
             header[i] = aStream.read_u32();
 
@@ -107,6 +109,8 @@ namespace tcle {
         unknown3 = aStream.read_u32();
         unknown4 = aStream.read_u32();
         unknown5 = aStream.read_u32();
+
+        _endOffset = aStream.mOffset;
     }
 
     void ObjlibLevel::deserialize(ByteStream& aStream) {

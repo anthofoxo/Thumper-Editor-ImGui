@@ -23,6 +23,7 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <misc/cpp/imgui_stdlib.h>
+#include <imgui_memory_editor.h>
 
 #include <iostream>
 #include <cstdlib> // EXIT_SUCCESS, EXIT_FAILURE
@@ -163,6 +164,7 @@ public:
     tcle::Window mWindow;
     AudioEngine mAudioEngine;
     bool mRunning = true;
+    ImFont* mMonoFont = nullptr;
 
     GLuint mIconTexture = 0;
     std::array<GLuint, 8> mDiffTextures{};
@@ -260,6 +262,7 @@ void Application::init() {
     }
 
     imgui_init(mWindow);
+    mMonoFont = ImGui::GetIO().Fonts->AddFontFromFileTTF("fonts/NotoSansMono-Regular.ttf", 18.0f);
 
     for (auto& entry : std::filesystem::directory_iterator("levels")) {
         if (!entry.is_directory()) continue;
@@ -371,24 +374,76 @@ void Application::update() {
     static tcle::Leaf* pLeaf = nullptr;
     static std::string title;
     
+    static MemoryEditor mem_edit_2;
+    static void* ptr = nullptr;
+    static size_t size = 0;
 
     if (ImGui::Begin("Parsed Leafs")) {
         for (auto& level : gLevels) {
-            if (ImGui::CollapsingHeader(level.origin.c_str())) {
-                ImGui::PushID(level.origin.c_str());
+             if (ImGui::TreeNode(level.origin.c_str())) {
+                if (ImGui::TreeNode("Leafs")) {
+                    ImGui::PushID(level.origin.c_str());
 
-                for (auto& leaf : level._leafs) {
-                    if (ImGui::SmallButton(leaf._declaredName.c_str())) {
-                        pLeaf = &leaf;
-                        title = std::format("{}:{}###LEAFVIEWER", level.origin, leaf._declaredName);
-                    }     
+                    for (auto& leaf : level._leafs) {
+                        if (ImGui::SmallButton(leaf._declaredName.c_str())) {
+                            pLeaf = &leaf;
+                            title = std::format("{}:{}###LEAFVIEWER", level.origin, leaf._declaredName);
+                        }
+
+                        if (ImGui::BeginPopupContextItem()) {
+                            if (ImGui::Button("Jump to offset in objlib")) {
+                                ptr = level._bytes.data();
+                                size = level._bytes.size();
+                                mem_edit_2.GotoAddrAndHighlight(leaf._beginOffset, leaf._endOffset);
+                                ImGui::CloseCurrentPopup();
+                            }
+
+                            ImGui::EndPopup();
+                        }
+
+                        ImGui::SetItemTooltip("Offset from 0x%x to 0x%x (%d bytes)", leaf._beginOffset, leaf._endOffset, leaf._endOffset - leaf._beginOffset);
+                    }
+
+                    ImGui::PopID();
+
+                    ImGui::TreePop();
                 }
 
-                ImGui::PopID();
+                if (ImGui::TreeNode("Library Imports")) {
+                    for (auto & import : level.libraryImports) {
+                        ImGui::TextUnformatted(import.library.c_str());
+                    }
+                    ImGui::TreePop();
+                }
+                
+                if (ImGui::TreeNode("Object Imports")) {
+                    for (auto & import : level.objectImports) {
+                        ImGui::Text("%s @ %s", import.name.c_str(), import.library.c_str());
+                    }
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Object Declarations")) {
+                    for (auto & import : level.objectDeclarations) {
+                        ImGui::TextUnformatted(import.name.c_str());
+                    }
+                    ImGui::TreePop();
+                }
+
+                ImGui::TreePop();
             }
         }
     }
     ImGui::End();
+
+    
+    if (ImGui::Begin("Hex Editor")) {
+        ImGui::PushFont(mMonoFont);
+        mem_edit_2.DrawContents(ptr, size, 0);
+        ImGui::PopFont();
+    }
+    ImGui::End();
+    
 
     if (!title.empty() && pLeaf) {
         if (ImGui::Begin(title.c_str())) {

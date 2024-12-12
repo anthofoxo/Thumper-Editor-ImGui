@@ -52,6 +52,8 @@ namespace tcle {
 
 	struct Leaf final {
 		std::string _declaredName;
+		size_t _beginOffset = 0;
+		size_t _endOffset = 0;
 
 		uint32_t header[4];
 		uint32_t hash0;
