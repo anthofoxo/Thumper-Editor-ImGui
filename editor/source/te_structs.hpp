@@ -52,8 +52,8 @@ namespace tcle {
 
 	struct Leaf final {
 		std::string _declaredName;
-		size_t _offset = 0;
 
+		uint32_t header[4];
 		uint32_t hash0;
 		uint32_t unknown0;
 		uint32_t hash1;
@@ -65,6 +65,47 @@ namespace tcle {
 		uint32_t unknown3;
 		uint32_t unknown4;
 		uint32_t unknown5;
+
+		void deserialize(ByteStream& aStream);
+	};
+
+	struct LibraryImport final {
+		uint32_t unknown0;
+		std::string library;
+	};
+
+	struct ObjectImport final {
+		uint32_t type;
+		std::string name;
+		uint32_t unknown0;
+		std::string library;
+	};
+
+	struct ObjectDeclaration final {
+		size_t _definitionOffset = 0;
+
+		uint32_t type;
+		std::string name;
+	};
+
+	struct ObjlibLevel final {
+		std::vector<char> _bytes;
+		std::vector<Leaf> _leafs;
+
+		uint32_t filetype; // 0x8
+		uint32_t objlibType; // 0x19621c9d
+		uint32_t unknown0;
+		uint32_t unknown1;
+		uint32_t unknown2;
+		uint32_t unknown3;
+		std::vector<LibraryImport> libraryImports;
+		std::string origin;
+		std::vector<ObjectImport> objectImports;
+		std::vector<ObjectDeclaration> objectDeclarations;
+
+		// Object definitions are dumped here
+
+		// Footer
 
 		void deserialize(ByteStream& aStream);
 	};
