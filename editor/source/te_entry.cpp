@@ -367,6 +367,193 @@ void Application::update() {
     hash_panel(mShowHashPanel);
     about_panel(mIconTexture, mShowAboutPanel);
 
+    
+    static tcle::Leaf* pLeaf = nullptr;
+    static std::string title;
+    
+
+    if (ImGui::Begin("Parsed Leafs")) {
+        for (auto& level : gLevels) {
+            if (ImGui::CollapsingHeader(level.origin.c_str())) {
+                ImGui::PushID(level.origin.c_str());
+
+                for (auto& leaf : level._leafs) {
+                    if (ImGui::SmallButton(leaf._declaredName.c_str())) {
+                        pLeaf = &leaf;
+                        title = std::format("{}:{}###LEAFVIEWER", level.origin, leaf._declaredName);
+                    }     
+                }
+
+                ImGui::PopID();
+            }
+        }
+    }
+    ImGui::End();
+
+    if (!title.empty() && pLeaf) {
+        if (ImGui::Begin(title.c_str())) {
+            int maxDataPoints = 0;
+
+            for (auto& trait : pLeaf->traits) {
+                if (trait.datapoints.size() > maxDataPoints) maxDataPoints = trait.datapoints.size();
+            }
+
+            ImGui::Button("Hover for leaf dump detail");
+
+            ImGui::SetItemTooltip(
+                "Time unit: %s\n"
+                "hash0: %u\n"
+                "hash1: %u\n"
+                "hash2: %u\n"
+                "Unknown 0: %d\n"
+                "Unknown 1: %d\n"
+                "Unknown 3: %d\n"
+                "Unknown 4: %d\n"
+                "Unknown 5: %d\n",
+                pLeaf->timeUnit.c_str(),
+                pLeaf->hash0,
+                pLeaf->hash1,
+                pLeaf->hash2,
+                pLeaf->unknown0,
+                pLeaf->unknown1,
+                pLeaf->unknown3,
+                pLeaf->unknown4,
+                pLeaf->unknown5
+            );
+
+            if (ImGui::BeginTable(pLeaf->_declaredName.c_str(), maxDataPoints + 1, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollX)) {
+                ImGui::TableSetupScrollFreeze(1, 1);
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TableHeader("Object:Selector");
+
+                for (int i = 0; i < maxDataPoints; ++i) {
+                    std::string s = std::to_string(i);
+                    ImGui::TableNextColumn();
+                    ImGui::TableHeader(s.c_str());
+                }
+
+                for (auto& trait : pLeaf->traits) {
+
+
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+
+                    std::string name;
+
+                    if (trait.object == pLeaf->_declaredName)
+                        name = tcle::rev_hash(trait.selector);
+                    else
+                        name = std::format("{}:{}", trait.object, tcle::rev_hash(trait.selector).c_str());
+
+                    ImGui::TableHeader(name.c_str());
+
+                    ImGui::SetItemTooltip(
+                        "intensity0: %s\n"
+                        "intensity1: %s\n"
+                        "Selector Share: %d\n"
+                        "Unknown 0: %d\n"
+                        "Unknown 1: %d\n"
+                        "Unknown 2: %d\n"
+                        "Unknown 3: %d\n"
+                        "Unknown 4: %d\n"
+                        "Unknown 5: %d\n"
+                        "Unknown 6: %d\n"
+                        "Unknown 7: %d\n"
+                        "Unknown 8: %d\n"
+                        "Unknown 9: %.2f\n"
+                        "Unknown 10: %.2f\n"
+                        "Unknown 11: %.2f\n"
+                        "Unknown 12: %.2f\n"
+                        "Unknown 13: %.2f\n"
+                        "Unknown 14: %d\n"
+                        "Unknown 15: %d\n"
+                        "Unknown 16: %d\n",
+                        trait.intensity0.c_str(),
+                        trait.intensity1.c_str(),
+                        trait.selectorShareIdx,
+                        trait.unknown0,
+                        trait.unknown1,
+                        trait.unknown2,
+                        trait.unknown3,
+                        trait.unknown4,
+                        trait.unknown5,
+                        trait.unknown6,
+                        trait.unknown7,
+                        trait.unknown8,
+                        trait.unknown9,
+                        trait.unknown10,
+                        trait.unknown11,
+                        trait.unknown12,
+                        trait.unknown13,
+                        trait.unknown14,
+                        trait.unknown15,
+                        trait.unknown16
+                    );
+
+                    int idx = 0;
+                    for (int i = 0; i < maxDataPoints; ++i) {
+                        ImGui::TableNextColumn();
+
+                        if (idx >= trait.datapoints.size()) continue;
+
+                        auto& datapoint = trait.datapoints[idx];
+                        if (std::abs(datapoint.time - static_cast<float>(i)) < 0.1f) {
+                            ++idx;
+
+                            int editorDatapointIdx = -1;
+
+                            for (int iEditorData = 0; iEditorData < trait.editorDatapoints.size(); iEditorData += 2) {
+                                auto& start = trait.editorDatapoints[iEditorData];
+                                auto& end = trait.editorDatapoints[iEditorData + 1];
+
+                                if (datapoint.time >= start.time && datapoint.time <= end.time) {
+
+                                    editorDatapointIdx = iEditorData;
+                                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF003F00);
+
+                                    break;
+                                }
+                            }
+
+
+
+
+                            if (trait.datatype == 2) {
+                                float val = std::any_cast<float>(datapoint.value);
+                                ImGui::PushStyleColor(ImGuiCol_Text, std::abs(val) > 0.01f ? ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } : ImVec4{ 0.5f, 0.5f, 0.5f, 1.0f });
+                                ImGui::Text("%.2f", std::any_cast<float>(datapoint.value));
+                                ImGui::PopStyleColor();
+                            }
+                            else if (trait.datatype == 8 || trait.datatype == 1) {
+                                bool val = std::any_cast<uint8_t>(datapoint.value);
+                                ImGui::PushStyleColor(ImGuiCol_Text, val ? ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } : ImVec4{ 0.5f, 0.5f, 0.5f, 1.0f });
+                                ImGui::Text("%s", val ? "true" : "false");
+                                ImGui::PopStyleColor();
+                            }
+                            else
+                                ImGui::TextUnformatted("?");
+
+
+
+                            std::string str = std::format("Relative Offset: {:.1f}\nInterpolation: {}\nEasing: {}", datapoint.time - static_cast<float>(i), datapoint.interpolation, datapoint.easing);
+
+                            ImGui::SetItemTooltip("%s", str.c_str());
+                        }
+                        else {
+                            // Empty
+                        }
+                    }
+                }
+
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
+    }
+    
+
     tcle::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
 
     if (ImGui::Begin("Thumper Level Editor v0.0.0.1", nullptr, ImGuiWindowFlags_MenuBar))
