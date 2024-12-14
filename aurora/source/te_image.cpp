@@ -2,7 +2,7 @@
 
 #include <stb_image.h>
 
-namespace tcle {
+namespace aurora {
     Image::Image(char const* aPath) {
         mPixels = stbi_load(aPath, &mWidth, &mHeight, nullptr, 4);
     }

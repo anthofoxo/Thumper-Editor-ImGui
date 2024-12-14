@@ -4,7 +4,7 @@
 #include <format>
 #include <array>
 
-namespace tcle {
+namespace aurora {
     uint32_t hash(unsigned char const* array, unsigned int size) {
         uint32_t h = 0x811c9dc5;
 

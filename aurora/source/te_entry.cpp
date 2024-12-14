@@ -5,10 +5,12 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
+#include "te_hash.hpp"
 #include "te_audio.hpp"
 #include "te_window.hpp"
 #include "te_image.hpp"
 #include "te_diff_table.hpp"
+#include "te_structs.hpp"
 
 #include <stb_image.h>
 #include <miniaudio.h>
@@ -21,7 +23,9 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <misc/cpp/imgui_stdlib.h>
+#include <imgui_memory_editor.h>
 
+#include <iostream>
 #include <cstdlib> // EXIT_SUCCESS, EXIT_FAILURE
 #include <stdio.h>
 #include <string>
@@ -37,34 +41,15 @@ struct Level {
     std::string author;
 };
 
-uint32_t hash32(unsigned char const* array, unsigned int size) {
-    uint32_t h = 0x811c9dc5;
-
-    while (size > 0) {
-        size--;
-        h = (h ^ *array) * 0x1000193;
-        array++;
-    }
-
-    h *= 0x2001;
-    h = (h ^ (h >> 0x7)) * 0x9;
-    h = (h ^ (h >> 0x11)) * 0x21;
-
-    return h;
-}
-
-uint32_t hash32(std::string const& str) {
-    return hash32((unsigned char const*)str.data(), static_cast<unsigned int>(str.size()));
-}
 
 void hash_panel(bool& open) {
     static std::string input = "type input here";
-    static uint32_t hash = hash32(input);
+    static uint32_t hash = aurora::hash(input);
 
     if (!open) return;
 
     if (ImGui::Begin("Hash Panel", &open)) {
-        if (ImGui::InputText("Input", &input)) hash = hash32(input);
+        if (ImGui::InputText("Input", &input)) hash = aurora::hash(input);
         ImGui::Text("0x%02x", hash);
     }
     ImGui::End();
@@ -141,6 +126,34 @@ void imgui_uninit() {
     ImGui::DestroyContext();
 }
 
+std::vector<aurora::ObjlibLevel> gLevels;
+
+void read_all_leafs(std::optional<std::filesystem::path> const& aThumperPath) {
+    std::string_view paths[] = {
+        "Alevels/title_screen.objlib",
+        "Alevels/demo.objlib",
+        "Alevels/level2/level_2a.objlib",
+        "Alevels/level3/level_3a.objlib",
+        "Alevels/level4/level_4a.objlib",
+        "Alevels/level5/level_5a.objlib",
+        "Alevels/level6/level_6.objlib",
+        "Alevels/level7/level_7a.objlib",
+        "Alevels/level8/level_8a.objlib",
+        "Alevels/level9/level_9a.objlib",
+    };
+
+    for (auto const& pathUnhashed : paths) {
+        std::string path = std::format("{}/cache/{:x}.pc", path_to_string(aThumperPath.value()), aurora::hash(pathUnhashed));
+
+        aurora::ByteStream stream = aurora::ByteStream(path);
+        aurora::ObjlibLevel level;
+        level.deserialize(stream);
+        level._bytes = std::move(stream.mData);
+
+        gLevels.push_back(std::move(level));
+    }
+}
+
 class Application final {
 public:
     void init();
@@ -148,9 +161,10 @@ public:
     void run();
     void update();
 public:
-    tcle::Window mWindow;
-    AudioEngine mAudioEngine;
+    aurora::Window mWindow;
+    aurora::AudioEngine mAudioEngine;
     bool mRunning = true;
+    ImFont* mMonoFont = nullptr;
 
     GLuint mIconTexture = 0;
     std::array<GLuint, 8> mDiffTextures{};
@@ -197,10 +211,10 @@ void Application::init() {
         }
     }
 
-    mWindow = tcle::Window({
+    mWindow = aurora::Window({
         .width = 1280,
         .height = 720,
-        .title = "Thumper Mod Loader v2.0.0.0",
+        .title = "Aurora v0.0.4 Indev",
 
         .maximized = true,
         .visible = false,
@@ -208,7 +222,7 @@ void Application::init() {
 
     // Set window icon
     {
-        tcle::Image icon32("thumper_modding_tool_32.png");
+        aurora::Image icon32("thumper_modding_tool_32.png");
         GLFWimage image{
             .width = icon32.width(),
             .height = icon32.height(),
@@ -229,7 +243,7 @@ void Application::init() {
 
     // Load larger icon, seen in the about panel
     {
-        tcle::Image image("thumper_modding_tool.png");
+        aurora::Image image("thumper_modding_tool.png");
         glCreateTextures(GL_TEXTURE_2D, 1, &mIconTexture);
         glTextureStorage2D(mIconTexture, 1, GL_RGBA8, image.width(), image.height());
         glTextureSubImage2D(mIconTexture, 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
@@ -240,7 +254,7 @@ void Application::init() {
     for (int i = 0; i < mDiffTextures.size(); ++i) {
         std::string path = std::format("difficulty_icons/d{}.png", i);
 
-        tcle::Image image(path.c_str());
+        aurora::Image image(path.c_str());
         glCreateTextures(GL_TEXTURE_2D, 1, &mDiffTextures[i]);
         glTextureStorage2D(mDiffTextures[i], 1, GL_RGBA8, image.width(), image.height());
         glTextureSubImage2D(mDiffTextures[i], 0, 0, 0, image.width(), image.height(), GL_RGBA, GL_UNSIGNED_BYTE, image.pixels());
@@ -248,6 +262,7 @@ void Application::init() {
     }
 
     imgui_init(mWindow);
+    mMonoFont = ImGui::GetIO().Fonts->AddFontFromFileTTF("fonts/NotoSansMono-Regular.ttf", 18.0f);
 
     for (auto& entry : std::filesystem::directory_iterator("levels")) {
         if (!entry.is_directory()) continue;
@@ -263,6 +278,8 @@ void Application::init() {
             node["author"].as<std::string>("")
         );
     }
+
+    read_all_leafs(mThumperPath);
 }
 
 void Application::uninit() {
@@ -334,7 +351,27 @@ void Application::update() {
         }
 
         if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Hash Panel", nullptr, &mShowHashPanel);
+            ImGui::Separator();
             ImGui::MenuItem("Dear ImGui Demo", nullptr, &mShowDearImGuiDemo);
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Help")) {
+            ImGui::MenuItem("About", nullptr, &mShowAboutPanel);
+
+            if (ImGui::MenuItem("Discord Server", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
+                ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://discord.com/invite/gTQbquY");
+            }
+
+            if (ImGui::MenuItem("Github", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
+                ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://github.com/CocoaMix86/Thumper-Custom-Level-Editor");
+            }
+
+            if (ImGui::MenuItem("Donate & Tip (ko-fi)", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
+                ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://ko-fi.com/cocoamix");
+            }
 
             ImGui::EndMenu();
         }
@@ -351,7 +388,246 @@ void Application::update() {
     hash_panel(mShowHashPanel);
     about_panel(mIconTexture, mShowAboutPanel);
 
-    tcle::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
+    
+    static aurora::Leaf* pLeaf = nullptr;
+    static std::string title;
+    
+    static MemoryEditor mem_edit_2;
+    static void* ptr = nullptr;
+    static size_t size = 0;
+
+    if (ImGui::Begin("Parsed Leafs")) {
+        for (auto& level : gLevels) {
+             if (ImGui::TreeNode(level.origin.c_str())) {
+                if (ImGui::TreeNode("Leafs")) {
+                    ImGui::PushID(level.origin.c_str());
+
+                    for (auto& leaf : level._leafs) {
+                        if (ImGui::SmallButton(leaf._declaredName.c_str())) {
+                            pLeaf = &leaf;
+                            title = std::format("{}:{}###LEAFVIEWER", level.origin, leaf._declaredName);
+                        }
+
+                        if (ImGui::BeginPopupContextItem()) {
+                            if (ImGui::Button("Jump to offset in objlib")) {
+                                ptr = level._bytes.data();
+                                size = level._bytes.size();
+                                mem_edit_2.GotoAddrAndHighlight(leaf._beginOffset, leaf._endOffset);
+                                ImGui::CloseCurrentPopup();
+                            }
+
+                            ImGui::EndPopup();
+                        }
+
+                        ImGui::SetItemTooltip("Offset from 0x%x to 0x%x (%d bytes)", leaf._beginOffset, leaf._endOffset, leaf._endOffset - leaf._beginOffset);
+                    }
+
+                    ImGui::PopID();
+
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Library Imports")) {
+                    for (auto & import : level.libraryImports) {
+                        ImGui::TextUnformatted(import.library.c_str());
+                    }
+                    ImGui::TreePop();
+                }
+                
+                if (ImGui::TreeNode("Object Imports")) {
+                    for (auto & import : level.objectImports) {
+                        ImGui::Text("%s @ %s", import.name.c_str(), import.library.c_str());
+                    }
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Object Declarations")) {
+                    for (auto & import : level.objectDeclarations) {
+                        ImGui::TextUnformatted(import.name.c_str());
+                    }
+                    ImGui::TreePop();
+                }
+
+                ImGui::TreePop();
+            }
+        }
+    }
+    ImGui::End();
+
+    
+    if (ImGui::Begin("Hex Editor")) {
+        ImGui::PushFont(mMonoFont);
+        mem_edit_2.DrawContents(ptr, size, 0);
+        ImGui::PopFont();
+    }
+    ImGui::End();
+    
+
+    if (!title.empty() && pLeaf) {
+        if (ImGui::Begin(title.c_str())) {
+            int maxDataPoints = 0;
+
+            for (auto& trait : pLeaf->traits) {
+                if (trait.datapoints.size() > maxDataPoints) maxDataPoints = trait.datapoints.size();
+            }
+
+            ImGui::Button("Hover for leaf dump detail");
+
+            ImGui::SetItemTooltip(
+                "Time unit: %s\n"
+                "hash0: %u\n"
+                "hash1: %u\n"
+                "hash2: %u\n"
+                "Unknown 0: %d\n"
+                "Unknown 1: %d\n"
+                "Unknown 3: %d\n"
+                "Unknown 4: %d\n"
+                "Unknown 5: %d\n",
+                pLeaf->timeUnit.c_str(),
+                pLeaf->hash0,
+                pLeaf->hash1,
+                pLeaf->hash2,
+                pLeaf->unknown0,
+                pLeaf->unknown1,
+                pLeaf->unknown3,
+                pLeaf->unknown4,
+                pLeaf->unknown5
+            );
+
+            if (ImGui::BeginTable(pLeaf->_declaredName.c_str(), maxDataPoints + 1, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollX)) {
+                ImGui::TableSetupScrollFreeze(1, 1);
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TableHeader("Object:Selector");
+
+                for (int i = 0; i < maxDataPoints; ++i) {
+                    std::string s = std::to_string(i);
+                    ImGui::TableNextColumn();
+                    ImGui::TableHeader(s.c_str());
+                }
+
+                for (auto& trait : pLeaf->traits) {
+
+
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+
+                    std::string name;
+
+                    if (trait.object == pLeaf->_declaredName)
+                        name = aurora::rev_hash(trait.selector);
+                    else
+                        name = std::format("{}:{}", trait.object, aurora::rev_hash(trait.selector).c_str());
+
+                    ImGui::TableHeader(name.c_str());
+
+                    ImGui::SetItemTooltip(
+                        "intensity0: %s\n"
+                        "intensity1: %s\n"
+                        "Selector Share: %d\n"
+                        "Unknown 0: %d\n"
+                        "Unknown 1: %d\n"
+                        "Unknown 2: %d\n"
+                        "Unknown 3: %d\n"
+                        "Unknown 4: %d\n"
+                        "Unknown 5: %d\n"
+                        "Unknown 6: %d\n"
+                        "Unknown 7: %d\n"
+                        "Unknown 8: %d\n"
+                        "Unknown 9: %.2f\n"
+                        "Unknown 10: %.2f\n"
+                        "Unknown 11: %.2f\n"
+                        "Unknown 12: %.2f\n"
+                        "Unknown 13: %.2f\n"
+                        "Unknown 14: %d\n"
+                        "Unknown 15: %d\n"
+                        "Unknown 16: %d\n",
+                        trait.intensity0.c_str(),
+                        trait.intensity1.c_str(),
+                        trait.selectorShareIdx,
+                        trait.unknown0,
+                        trait.unknown1,
+                        trait.unknown2,
+                        trait.unknown3,
+                        trait.unknown4,
+                        trait.unknown5,
+                        trait.unknown6,
+                        trait.unknown7,
+                        trait.unknown8,
+                        trait.unknown9,
+                        trait.unknown10,
+                        trait.unknown11,
+                        trait.unknown12,
+                        trait.unknown13,
+                        trait.unknown14,
+                        trait.unknown15,
+                        trait.unknown16
+                    );
+
+                    int idx = 0;
+                    for (int i = 0; i < maxDataPoints; ++i) {
+                        ImGui::TableNextColumn();
+
+                        if (idx >= trait.datapoints.size()) continue;
+
+                        auto& datapoint = trait.datapoints[idx];
+                        if (std::abs(datapoint.time - static_cast<float>(i)) < 0.1f) {
+                            ++idx;
+
+                            int editorDatapointIdx = -1;
+
+                            for (int iEditorData = 0; iEditorData < trait.editorDatapoints.size(); iEditorData += 2) {
+                                auto& start = trait.editorDatapoints[iEditorData];
+                                auto& end = trait.editorDatapoints[iEditorData + 1];
+
+                                if (datapoint.time >= start.time && datapoint.time <= end.time) {
+
+                                    editorDatapointIdx = iEditorData;
+                                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF003F00);
+
+                                    break;
+                                }
+                            }
+
+
+
+
+                            if (trait.datatype == 2) {
+                                float val = std::any_cast<float>(datapoint.value);
+                                ImGui::PushStyleColor(ImGuiCol_Text, std::abs(val) > 0.01f ? ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } : ImVec4{ 0.5f, 0.5f, 0.5f, 1.0f });
+                                ImGui::Text("%.2f", std::any_cast<float>(datapoint.value));
+                                ImGui::PopStyleColor();
+                            }
+                            else if (trait.datatype == 8 || trait.datatype == 1) {
+                                bool val = std::any_cast<uint8_t>(datapoint.value);
+                                ImGui::PushStyleColor(ImGuiCol_Text, val ? ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } : ImVec4{ 0.5f, 0.5f, 0.5f, 1.0f });
+                                ImGui::Text("%s", val ? "true" : "false");
+                                ImGui::PopStyleColor();
+                            }
+                            else
+                                ImGui::TextUnformatted("?");
+
+
+
+                            std::string str = std::format("Relative Offset: {:.1f}\nInterpolation: {}\nEasing: {}", datapoint.time - static_cast<float>(i), datapoint.interpolation, datapoint.easing);
+
+                            ImGui::SetItemTooltip("%s", str.c_str());
+                        }
+                        else {
+                            // Empty
+                        }
+                    }
+                }
+
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
+    }
+    
+
+    aurora::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
 
     if (ImGui::Begin("Thumper Level Editor v0.0.0.1", nullptr, ImGuiWindowFlags_MenuBar))
     {
@@ -630,34 +906,13 @@ void Application::update() {
                     if (auto path = select_directory_save()) mThumperPath = path;
                 }
 
-
-                ImGui::MenuItem("Hash Panel", nullptr, &mShowHashPanel);
                 ImGui::MenuItem("[!!!] Reset Settings [!!!]", nullptr, nullptr, false);
-
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Help")) {
-                ImGui::MenuItem("About...", nullptr, &mShowAboutPanel);
-
-                if (ImGui::MenuItem("Discord Server", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                    ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://discord.com/invite/gTQbquY");
-                }
-
-                if (ImGui::MenuItem("Github", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                    ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://github.com/CocoaMix86/Thumper-Custom-Level-Editor");
-                }
-
-                if (ImGui::MenuItem("Donate & Tip (ko-fi)", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                    ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://ko-fi.com/cocoamix");
-                }
 
                 ImGui::EndMenu();
             }
 
             ImGui::EndMenuBar();
         }
-
 
         ImGui::TextUnformatted("Mod Mode");
         ImGui::SameLine();

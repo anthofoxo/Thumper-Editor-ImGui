@@ -1,4 +1,4 @@
-# Thumper Editor
+# Aurora
 
 This is a C++ / ImGui port of the existing Thumper modding tools.
 

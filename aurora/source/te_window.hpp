@@ -8,7 +8,7 @@
 
 #include <utility>
 
-namespace tcle {
+namespace aurora {
 	class Window final {
 	public:
 		struct CreateInfo final {

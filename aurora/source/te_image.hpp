@@ -2,7 +2,7 @@
 
 #include <utility>
 
-namespace tcle {
+namespace aurora {
     class Image final {
     public:
         constexpr Image() = default;
