@@ -125,7 +125,7 @@ namespace aurora {
 		std::string _declaredName;
 		
 		uint32_t header[3];
-		uint32_t hash0;
+		uint32_t hash0; //EditStateComp
 		std::string samplePlayMode;
 		uint32_t unknown0;
 		std::string filePath;
@@ -142,6 +142,30 @@ namespace aurora {
 		float offset;
 		std::string channelGroup;
 
+
+	};
+
+	struct Spn final {
+
+		uint32_t header[3];
+		uint32_t hash0; //EditStateComp
+		
+		//WriteXfmComp
+		uint32_t hash1; //XfmComp
+		uint32_t unknown0;
+		std::string xfmName;
+		std::string constraint;
+		//insert vec3 shit
+		f32vec3 position;
+		f32vec3 rot_x;
+		f32vec3 rot_y;
+		f32vec3 rot_z;
+		f32vec3 scale;
+		//End
+
+		uint32_t unknown1;
+		std::string objlibPath;
+		std::string bucketType;
 
 	};
 
