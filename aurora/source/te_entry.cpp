@@ -495,12 +495,18 @@ void Application::update() {
                     ImGui::TreePop();
                 }
 
-                if (ImGui::TreeNode("Object Declarations")) {
+                float coverage = 0.0f;
+                for (auto & import : level.objectDeclarations) {
+                    if(import._definitionOffset != 0) coverage += 1.0f;
+                }
+
+                coverage /= (float)level.objectDeclarations.size();
+
+                if (ImGui::TreeNodeEx("Object Declarations", 0, "Object Declarations (%d%%)", (int)(coverage * 100.0f))) {
                     for (auto & import : level.objectDeclarations) {
                         ImGui::PushStyleColor(ImGuiCol_Text, import._definitionOffset == 0 ? ImVec4(1.0f, 0.0f, 0.0f, 1.0f) : ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
                         ImGui::TextUnformatted(import.name.c_str());
                         ImGui::PopStyleColor();
-                        ImGui::SetItemTooltip("0x%x", import.type);
                     }
                     ImGui::TreePop();
                 }

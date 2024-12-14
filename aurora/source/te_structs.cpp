@@ -166,6 +166,11 @@ namespace aurora {
                     leaf.deserialize(aStream);
 
                     _leafs.push_back(std::move(leaf));
+
+                    std::filesystem::create_directories(std::filesystem::path("generated") / std::filesystem::path(origin).stem());
+                    std::filesystem::path output = std::filesystem::path("generated") / std::filesystem::path(origin).stem() / declaration.name;
+                    std::ofstream stream(output);
+                    stream.write(aStream.mData.data() + leaf._beginOffset, leaf._endOffset - leaf._beginOffset);
                 }
             }
 
@@ -184,6 +189,11 @@ namespace aurora {
                     samp.deserialize(aStream);
 
                     _samps.push_back(std::move(samp));
+
+                    std::filesystem::create_directories(std::filesystem::path("generated") / std::filesystem::path(origin).stem());
+                    std::filesystem::path output = std::filesystem::path("generated") / std::filesystem::path(origin).stem() / declaration.name;
+                    std::ofstream stream(output);
+                    stream.write(aStream.mData.data() + samp._beginOffset, samp._endOffset - samp._beginOffset);
                 }
                 
             }
@@ -207,6 +217,11 @@ namespace aurora {
                     definition._endOffset = aStream.mOffset;
 
                     _spns.push_back(std::move(definition));
+
+                    std::filesystem::create_directories(std::filesystem::path("generated") / std::filesystem::path(origin).stem());
+                    std::filesystem::path output = std::filesystem::path("generated") / std::filesystem::path(origin).stem() / declaration.name;
+                    std::ofstream stream(output);
+                    stream.write(aStream.mData.data() + definition._beginOffset, definition._endOffset - definition._beginOffset);
                 }
 
             }
