@@ -120,6 +120,31 @@ namespace aurora {
 		void deserialize(ByteStream& aStream);
 	};
 
+	struct Samp final {
+
+		std::string _declaredName;
+		
+		uint32_t header[3];
+		uint32_t hash0;
+		std::string samplePlayMode;
+		uint32_t unknown0;
+		std::string filePath;
+
+		//In the files, it's either a boolean then an int, or an int then a boolean. The order is unknown. I changed these on the debug version and they didn't do anything.
+		uint8_t unknown1;
+		uint32_t unknown2;
+
+		//end
+
+		float volume;
+		float pitch;
+		float pan;
+		float offset;
+		std::string channelGroup;
+
+
+	};
+
 	struct Lvl final {						// struct developed from 0x5177 offset from demo.objlib
 		std::string _declaredName;
 
