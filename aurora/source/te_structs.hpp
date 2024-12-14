@@ -166,6 +166,65 @@ namespace aurora {
 		void deserialize(ByteStream& aStream);
 	};
 
+	struct SequinDrawer final {
+		uint8_t header[3]; //7, 4, 1
+		uint32_t hash0;
+		uint32_t unknown0;
+		uint8_t unknownBool0;
+		std::string drawLayers;
+		std::string bucketType;
+	};
+
+	struct SequinMasterLvl final {
+		std::string lvlName;	//can be 00 00 00 00 if there IS a boss lvl here
+		std::string gateName;	//can be 00 00 00 00 if there is no boss lvl here
+		uint8_t isCheckpoint;
+		std::string checkpointLeaderLvlName;
+		std::string restLvlName;
+
+		//what the heck are these
+		uint8_t unknownBool0;
+		uint8_t unknownBool1;
+		uint32_t unknown0;		//either an int or 4 bools.
+		uint8_t unknownBool2;
+		uint8_t unknownBool3;
+		
+
+		uint8_t playPlus;
+	};
+
+	//using level 2's sequin master as the example, offset 0x346B
+	struct SequinMaster final {
+		std::string _declaredName;
+
+		uint32_t header[4]; //33, 33, 4, 2
+		uint32_t hash0;
+		uint32_t unknown0;
+		uint32_t hash1;
+		std::string timeUnit;
+		uint32_t hash2;		//editstatecomp
+		uint32_t unknown1;
+		float unknown2;		//160
+		std::string skybox;
+		std::string introLvl;
+		uint32_t sublevelCount;
+		std::vector<SequinMasterLvl> sublevels;
+
+		//footer
+		uint8_t footer1;	//False
+		uint8_t footer2;	//True
+		uint32_t footer3;	//3
+		uint32_t footer4;	//50
+		uint32_t footer5;	//8
+		uint32_t footer6;	//15
+		float footer7;		//0.6f
+		float footer8;		//0.5f
+		float footer9;		//0.5f
+		std::string checkpointLvl;
+		std::string pathGameplay;	//I haven't seen this change, it's always "path.gameplay"
+
+	};
+
 	struct Lvl final {						// struct developed from 0x5177 offset from demo.objlib
 		std::string _declaredName;
 
