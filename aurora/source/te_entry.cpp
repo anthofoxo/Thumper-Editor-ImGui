@@ -281,13 +281,7 @@ void Application::init() {
 
     read_all_leafs(mThumperPath);
 
-    for (auto& level : gLevels) {
-        for (auto& samp : level._samps) {
-            if (!samp.hash0.has_value()) {
-                std::cout << level.origin << " : " << samp._declaredName << '\n';
-            }
-        }
-    }
+   
 }
 
 void Application::uninit() {

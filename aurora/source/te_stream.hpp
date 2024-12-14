@@ -28,10 +28,11 @@ namespace aurora {
 		inline int32_t poke_s32() const { return *reinterpret_cast<int32_t const*>(head()); }
 		inline uint32_t poke_u32() const { return *reinterpret_cast<uint32_t const*>(head()); }
 		inline float poke_f32() const { return *reinterpret_cast<float const*>(head()); }
-		inline u32vec3 poke_u32vec3() { return *reinterpret_cast<u32vec3 const*>(head()); }
-		inline f32vec3 poke_f32vec3() { return *reinterpret_cast<f32vec3 const*>(head()); }
-		inline f32vec4 poke_f32vec4() { return *reinterpret_cast<f32vec4 const*>(head()); }
-		
+		inline u32vec3 poke_u32vec3() const { return *reinterpret_cast<u32vec3 const*>(head()); }
+		inline f32vec3 poke_f32vec3() const { return *reinterpret_cast<f32vec3 const*>(head()); }
+		inline f32vec4 poke_f32vec4() const { return *reinterpret_cast<f32vec4 const*>(head()); }
+		inline Transform poke_transform() const { return *reinterpret_cast<Transform const*>(head()); }
+
 		inline int8_t read_s8() { auto val = poke_s8(); advance(sizeof(int8_t)); return val; }
 		inline uint8_t read_u8() { auto val = poke_u8(); advance(sizeof(uint8_t)); return val; }
 		inline int16_t read_s16() { auto val = poke_s16(); advance(sizeof(int16_t)); return val; }
@@ -42,6 +43,7 @@ namespace aurora {
 		inline u32vec3 read_u32vec3() { auto val = poke_u32vec3(); advance(sizeof(u32vec3)); return val; }
 		inline f32vec3 read_f32vec3() { auto val = poke_f32vec3(); advance(sizeof(f32vec3)); return val; }
 		inline f32vec4 read_f32vec4() { auto val = poke_f32vec4(); advance(sizeof(f32vec4)); return val; }
+		inline Transform read_transform() { auto val = poke_transform(); advance(sizeof(Transform)); return val; }
 
 		inline std::string read_str() {
 			uint32_t length = read_u32();

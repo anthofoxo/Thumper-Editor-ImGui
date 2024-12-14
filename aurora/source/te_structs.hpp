@@ -144,8 +144,11 @@ namespace aurora {
 	};
 
 	struct Spn final {
+		std::string _declaredName;
+		size_t _beginOffset = 0;
+		size_t _endOffset = 0;
 
-		uint32_t header[3];
+		uint32_t header[3]; // 1, 4, 2
 		uint32_t hash0; //EditStateComp
 		
 		//WriteXfmComp
@@ -153,18 +156,14 @@ namespace aurora {
 		uint32_t unknown0;
 		std::string xfmName;
 		std::string constraint;
-		//insert vec3 shit
-		f32vec3 position;
-		f32vec3 rot_x;
-		f32vec3 rot_y;
-		f32vec3 rot_z;
-		f32vec3 scale;
-		//End
-
-		uint32_t unknown1;
+		
+		Transform transform;
+		
+		uint32_t unknown2;
 		std::string objlibPath;
 		std::string bucketType;
 
+		void deserialize(ByteStream& aStream);
 	};
 
 	struct Lvl final {						// struct developed from 0x5177 offset from demo.objlib
@@ -232,6 +231,7 @@ namespace aurora {
 		std::vector<char> _bytes;
 		std::vector<Leaf> _leafs;
 		std::vector<Samp> _samps;
+		std::vector<Spn> _spns;
 
 		uint32_t filetype; // 0x8
 		uint32_t objlibType; // 0x19621c9d

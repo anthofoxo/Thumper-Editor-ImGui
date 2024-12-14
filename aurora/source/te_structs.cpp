@@ -187,6 +187,29 @@ namespace aurora {
                 }
                 
             }
+
+            // Spn
+            else if (declaration.type == 0xd897d5db) {
+
+
+                uint32_t header[]{ 0x01, 0x04, 0x02 };
+                auto headerBytes = std::span<char>(reinterpret_cast<char*>(std::addressof(header)), sizeof(header));
+
+                auto it = std::search(aStream.mData.begin() + aStream.mOffset, aStream.mData.end(), headerBytes.begin(), headerBytes.end());
+                if (it != aStream.mData.end()) {
+                    aStream.advance(std::distance(aStream.mData.begin() + aStream.mOffset, it));
+
+                    declaration._definitionOffset = aStream.mOffset;
+                    Spn definition;
+                    definition._declaredName = declaration.name;
+                    definition._beginOffset = aStream.mOffset;
+                    definition.deserialize(aStream);
+                    definition._endOffset = aStream.mOffset;
+
+                    _spns.push_back(std::move(definition));
+                }
+
+            }
         }
 
         // Footer
@@ -224,5 +247,28 @@ namespace aurora {
         channelGroup = aStream.read_str();
 
         _endOffset = aStream.mOffset;
+    }
+
+    void Spn::deserialize(ByteStream& aStream) {
+        header[0] = aStream.read_u32();
+        assert(header[0] == 0x01);
+        header[1] = aStream.read_u32();
+        assert(header[1] == 0x04);
+        header[2] = aStream.read_u32();
+        assert(header[2] == 0x02);
+
+        hash0 = aStream.read_u32();
+        hash1 = aStream.read_u32();
+        unknown0 = aStream.read_u32();
+        xfmName = aStream.read_str();
+
+        constraint = aStream.read_str();
+
+        transform = aStream.read_transform();
+
+        unknown2 = aStream.read_u32();
+
+        objlibPath = aStream.read_str();
+        bucketType = aStream.read_str();
     }
 }

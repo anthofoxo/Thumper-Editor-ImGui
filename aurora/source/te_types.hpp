@@ -21,4 +21,12 @@ namespace aurora {
 		union { float z, b; };
 		union { float w, a; };
 	};
+
+	struct Transform final {
+		f32vec3 position;
+		f32vec3 rotX;
+		f32vec3 rotY;
+		f32vec3 rotZ;
+		f32vec3 scale;
+	};
 }
