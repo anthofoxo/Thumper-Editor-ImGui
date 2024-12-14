@@ -455,6 +455,32 @@ void Application::update() {
                     ImGui::TreePop();
                 }
 
+                if (ImGui::TreeNode("Spns")) {
+                    ImGui::PushID(level.origin.c_str());
+
+                    for (auto& spn : level._spns) {
+                        if (ImGui::SmallButton(spn._declaredName.c_str())) {
+                        }
+
+                        if (ImGui::BeginPopupContextItem()) {
+                            if (ImGui::Button("Jump to offset in objlib")) {
+                                ptr = level._bytes.data();
+                                size = level._bytes.size();
+                                mem_edit_2.GotoAddrAndHighlight(spn._beginOffset, spn._endOffset);
+                                ImGui::CloseCurrentPopup();
+                            }
+
+                            ImGui::EndPopup();
+                        }
+
+                        ImGui::SetItemTooltip("Offset from 0x%x to 0x%x (%d bytes)", spn._beginOffset, spn._endOffset, spn._endOffset - spn._beginOffset);
+                    }
+
+                    ImGui::PopID();
+
+                    ImGui::TreePop();
+                }
+
                 if (ImGui::TreeNode("Library Imports")) {
                     for (auto & import : level.libraryImports) {
                         ImGui::TextUnformatted(import.library.c_str());
