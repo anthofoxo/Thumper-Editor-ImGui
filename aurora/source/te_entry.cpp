@@ -280,6 +280,14 @@ void Application::init() {
     }
 
     read_all_leafs(mThumperPath);
+
+    for (auto& level : gLevels) {
+        for (auto& samp : level._samps) {
+            if (!samp.hash0.has_value()) {
+                std::cout << level.origin << " : " << samp._declaredName << '\n';
+            }
+        }
+    }
 }
 
 void Application::uninit() {
@@ -427,6 +435,32 @@ void Application::update() {
                     ImGui::TreePop();
                 }
 
+                if (ImGui::TreeNode("Samps")) {
+                    ImGui::PushID(level.origin.c_str());
+
+                    for (auto& samp : level._samps) {
+                        if (ImGui::SmallButton(samp._declaredName.c_str())) {
+                        }
+
+                        if (ImGui::BeginPopupContextItem()) {
+                            if (ImGui::Button("Jump to offset in objlib")) {
+                                ptr = level._bytes.data();
+                                size = level._bytes.size();
+                                mem_edit_2.GotoAddrAndHighlight(samp._beginOffset, samp._endOffset);
+                                ImGui::CloseCurrentPopup();
+                            }
+
+                            ImGui::EndPopup();
+                        }
+
+                        ImGui::SetItemTooltip("Offset from 0x%x to 0x%x (%d bytes)", samp._beginOffset, samp._endOffset, samp._endOffset - samp._beginOffset);
+                    }
+
+                    ImGui::PopID();
+
+                    ImGui::TreePop();
+                }
+
                 if (ImGui::TreeNode("Library Imports")) {
                     for (auto & import : level.libraryImports) {
                         ImGui::TextUnformatted(import.library.c_str());
@@ -443,7 +477,10 @@ void Application::update() {
 
                 if (ImGui::TreeNode("Object Declarations")) {
                     for (auto & import : level.objectDeclarations) {
+                        ImGui::PushStyleColor(ImGuiCol_Text, import._definitionOffset == 0 ? ImVec4(1.0f, 0.0f, 0.0f, 1.0f) : ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
                         ImGui::TextUnformatted(import.name.c_str());
+                        ImGui::PopStyleColor();
+                        ImGui::SetItemTooltip("0x%x", import.type);
                     }
                     ImGui::TreePop();
                 }

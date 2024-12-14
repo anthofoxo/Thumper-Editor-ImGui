@@ -168,8 +168,61 @@ namespace aurora {
                     _leafs.push_back(std::move(leaf));
                 }
             }
+
+            // Samp
+            else if (declaration.type == 0x7aa8f390) {
+                uint32_t header[]{ 0x0C, 0x04 };
+                auto headerBytes = std::span<char>(reinterpret_cast<char*>(std::addressof(header)), sizeof(header));
+
+                auto it = std::search(aStream.mData.begin() + aStream.mOffset, aStream.mData.end(), headerBytes.begin(), headerBytes.end());
+                if (it != aStream.mData.end()) {
+                    aStream.advance(std::distance(aStream.mData.begin() + aStream.mOffset, it));
+
+                    declaration._definitionOffset = aStream.mOffset;
+                    Samp samp;
+                    samp._declaredName = declaration.name;
+                    samp.deserialize(aStream);
+
+                    _samps.push_back(std::move(samp));
+                }
+                
+            }
         }
 
         // Footer
+    }
+
+    void Samp::deserialize(ByteStream& aStream) {
+        _beginOffset = aStream.mOffset;
+
+        header[0] = aStream.read_u32();
+        assert(header[0] == 0x0C);
+        header[1] = aStream.read_u32();
+        assert(header[1] == 0x04);
+
+        // if 0x01 the next value is a hash, if 0 there is no hash
+        // The datatype doesnt match a thumper boolean with a 1 byte size
+        // This may likely be a hash count, but we've only observed values of 0 and 1
+        // and thus are assuming this is a boolean
+        // Theres only a handful of cases where this is 0 and is typically 1
+        uint32_t hasHash = aStream.read_u32();
+        if (hasHash == 0x01) hash0 = aStream.read_u32();
+        assert(hasHash < 2); // If this is ever >= 2, we want to know about it
+
+        samplePlayMode = aStream.read_str();
+        unknown0 = aStream.read_u32();
+        filePath = aStream.read_str();
+
+        for (int i = 0; i < 5; ++i) {
+            unknown1[i] = aStream.read_u8();
+        }
+
+        volume = aStream.read_f32();
+        pitch = aStream.read_f32();
+        pan = aStream.read_f32();
+        offset = aStream.read_f32();
+        channelGroup = aStream.read_str();
+
+        _endOffset = aStream.mOffset;
     }
 }

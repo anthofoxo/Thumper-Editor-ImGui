@@ -121,20 +121,18 @@ namespace aurora {
 	};
 
 	struct Samp final {
-
 		std::string _declaredName;
+		size_t _beginOffset = 0;
+		size_t _endOffset = 0;
 		
-		uint32_t header[3];
-		uint32_t hash0; //EditStateComp
+		uint32_t header[2];
+		std::optional<uint32_t> hash0; //EditStateComp
 		std::string samplePlayMode;
 		uint32_t unknown0;
 		std::string filePath;
 
 		//In the files, it's either a boolean then an int, or an int then a boolean. The order is unknown. I changed these on the debug version and they didn't do anything.
-		uint8_t unknown1;
-		uint32_t unknown2;
-
-		//end
+		uint8_t unknown1[5];
 
 		float volume;
 		float pitch;
@@ -142,7 +140,7 @@ namespace aurora {
 		float offset;
 		std::string channelGroup;
 
-
+		void deserialize(ByteStream& aStream);
 	};
 
 	struct Spn final {
@@ -233,6 +231,7 @@ namespace aurora {
 	struct ObjlibLevel final {
 		std::vector<char> _bytes;
 		std::vector<Leaf> _leafs;
+		std::vector<Samp> _samps;
 
 		uint32_t filetype; // 0x8
 		uint32_t objlibType; // 0x19621c9d
