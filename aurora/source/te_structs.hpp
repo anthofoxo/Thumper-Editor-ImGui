@@ -167,12 +167,19 @@ namespace aurora {
 	};
 
 	struct SequinDrawer final {
+		std::string _declaredName;
+		size_t _beginOffset = 0;
+		size_t _endOffset = 0;
+
 		uint8_t header[3]; //7, 4, 1
 		uint32_t hash0;
 		uint32_t unknown0;
 		uint8_t unknownBool0;
 		std::string drawLayers;
 		std::string bucketType;
+		uint32_t unknown1;
+
+		void deserialize(ByteStream& aStream);
 	};
 
 	struct SequinMasterLvl final {
@@ -297,6 +304,7 @@ namespace aurora {
 		std::vector<Samp> _samps;
 		std::vector<Spn> _spns;
 		std::vector<SequinMaster> _masters;
+		std::vector<SequinDrawer> _drawers;
 
 		uint32_t filetype; // 0x8
 		uint32_t objlibType; // 0x19621c9d

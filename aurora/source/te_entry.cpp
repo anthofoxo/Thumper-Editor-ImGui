@@ -3,7 +3,7 @@
 #endif
 
 #define AURORA_NAME "Aurora"
-#define AURORA_BASE_VERSION "v0.0.4"
+#define AURORA_BASE_VERSION "v0.0.4-a.1"
 const char* kLinkDiscord = "https://discord.com/invite/gTQbquY";
 char const* kLinkGithub = "https://github.com/anthofoxo/aurora";
 
@@ -227,6 +227,9 @@ public:
         aurora::SequinMaster* pMaster = nullptr;
         std::string masterTitle;
 
+        aurora::SequinDrawer* pDrawer = nullptr;
+        std::string drawerTitle;
+
         MemoryEditor memoryEditor;
         void* memoryEditorOffset = nullptr;
         size_t memoryEditorSize = 0;
@@ -284,6 +287,21 @@ public:
                     ImGui::Checkbox("Playplus", &sublevel.playPlus);
                 }
 
+            }
+            ImGui::End();
+        }
+    }
+
+    void gui_drawer_viewer() {
+        if (!mContext.drawerTitle.empty() && mContext.pDrawer) {
+            if (ImGui::Begin(mContext.drawerTitle.c_str())) {
+                ImGui::LabelText("hash0", "0x%x", mContext.pDrawer->hash0);
+                ImGui::LabelText("unknown0", "%u", mContext.pDrawer->unknown0);
+                ImGui::LabelText("unknownBool0", "%d", mContext.pDrawer->unknownBool0);
+
+                ImGui::LabelText("Draw Layers", "%s", mContext.pDrawer->drawLayers.c_str());
+                ImGui::LabelText("Bucket Type", "%s", mContext.pDrawer->bucketType.c_str());
+                ImGui::LabelText("unknown1", "%u", mContext.pDrawer->unknown1);
             }
             ImGui::End();
         }
@@ -769,6 +787,34 @@ void Application::update() {
                     ImGui::TreePop();
                 }
 
+                if (ImGui::TreeNode("Drawers")) {
+                    ImGui::PushID(level.origin.c_str());
+
+                    for (auto& drawer : level._drawers) {
+                        if (ImGui::SmallButton(drawer._declaredName.c_str())) {
+                            mContext.pDrawer = &drawer;
+                            mContext.drawerTitle = std::format("{}:{}###DRAWERVIEWER", level.origin, drawer._declaredName);
+                        }
+
+                        if (ImGui::BeginPopupContextItem()) {
+                            if (ImGui::Button("Jump to offset in objlib")) {
+                                mContext.memoryEditorOffset = level._bytes.data();
+                                mContext.memoryEditorSize = level._bytes.size();
+                                mContext.memoryEditor.GotoAddrAndHighlight(drawer._beginOffset, drawer._endOffset);
+                                ImGui::CloseCurrentPopup();
+                            }
+
+                            ImGui::EndPopup();
+                        }
+
+                        ImGui::SetItemTooltip("Offset from 0x%x to 0x%x (%d bytes)", drawer._beginOffset, drawer._endOffset, drawer._endOffset - drawer._beginOffset);
+                    }
+
+                    ImGui::PopID();
+
+                    ImGui::TreePop();
+                }
+
                 if (ImGui::TreeNode("Spns")) {
                     ImGui::PushID(level.origin.c_str());
 
@@ -832,6 +878,7 @@ void Application::update() {
     gui_leaf_viewer();
     gui_spn_viewer();
     gui_master_viewer();
+    gui_drawer_viewer();
 
     aurora::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
 

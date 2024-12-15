@@ -228,8 +228,29 @@ namespace aurora {
 
                     _masters.push_back(std::move(definition));
                 }
+            }
+
+            // Drawer
+            else if (declaration.type == 0xd3058b5d) {
+                uint32_t header[]{ 7, 4, 1 };
+                auto headerBytes = std::span<char>(reinterpret_cast<char*>(std::addressof(header)), sizeof(header));
+
+                auto it = std::search(aStream.mData.begin() + aStream.mOffset, aStream.mData.end(), headerBytes.begin(), headerBytes.end());
+                if (it != aStream.mData.end()) {
+                    aStream.advance(std::distance(aStream.mData.begin() + aStream.mOffset, it));
+
+                    declaration._definitionOffset = aStream.mOffset;
+                    SequinDrawer definition;
+                    definition._declaredName = declaration.name;
+                    definition._beginOffset = aStream.mOffset;
+                    definition.deserialize(aStream);
+                    definition._endOffset = aStream.mOffset;
+
+                    _drawers.push_back(std::move(definition));
+                }
 
             }
+
         }
 
         // Footer
@@ -345,5 +366,21 @@ namespace aurora {
         footer9 = aStream.read_f32();
         checkpointLvl = aStream.read_str();
         pathGameplay = aStream.read_str();
+    }
+
+    void SequinDrawer::deserialize(ByteStream& aStream) {
+        header[0] = aStream.read_u32();
+        assert(header[0] == 7);
+        header[1] = aStream.read_u32();
+        assert(header[1] == 4);
+        header[2] = aStream.read_u32();
+        assert(header[2] == 1);
+
+        hash0 = aStream.read_u32();
+        unknown0 = aStream.read_u32();
+        unknownBool0 = aStream.read_u8();
+        drawLayers = aStream.read_str();
+        bucketType = aStream.read_str();
+        unknown1 = aStream.read_u32();
     }
 }
