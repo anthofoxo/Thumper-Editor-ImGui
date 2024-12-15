@@ -224,6 +224,9 @@ public:
         aurora::Spn* pSpn = nullptr;
         std::string spnTitle;
 
+        aurora::SequinMaster* pMaster = nullptr;
+        std::string masterTitle;
+
         MemoryEditor memoryEditor;
         void* memoryEditorOffset = nullptr;
         size_t memoryEditorSize = 0;
@@ -255,6 +258,32 @@ public:
                 ImGui::LabelText("Offset", "%.2f", mContext.pSample->offset);
                 ImGui::LabelText("Channel Group", "%s", mContext.pSample->channelGroup.c_str());
                 
+            }
+            ImGui::End();
+        }
+    }
+
+    void gui_master_viewer() {
+        if (!mContext.masterTitle.empty() && mContext.pMaster) {
+            if (ImGui::Begin(mContext.masterTitle.c_str())) {
+                ImGui::LabelText("Time Unit", "%s", mContext.pMaster->timeUnit.c_str());
+                ImGui::LabelText("Unknown2", "%f", mContext.pMaster->unknown2);
+                ImGui::LabelText("Skybox", "%s", mContext.pMaster->skybox.c_str());
+                ImGui::LabelText("Intro Level", "%s", mContext.pMaster->introLvl.c_str());
+                ImGui::LabelText("Checkpoint Level", "%s", mContext.pMaster->checkpointLvl.c_str());
+                ImGui::LabelText("Path", "%s", mContext.pMaster->pathGameplay.c_str());
+
+                for (auto& sublevel : mContext.pMaster->sublevels) {
+                    ImGui::Separator();
+                    ImGui::LabelText("Level name", "%s", sublevel.lvlName.c_str());
+                    ImGui::LabelText("Gate name", "%s", sublevel.gateName.c_str());
+                    ImGui::LabelText("Leader level", "%s", sublevel.checkpointLeaderLvlName.c_str());
+                    ImGui::LabelText("Rest level", "%s", sublevel.restLvlName.c_str());
+
+                    ImGui::Checkbox("Has checkpoint", &sublevel.isCheckpoint);
+                    ImGui::Checkbox("Playplus", &sublevel.playPlus);
+                }
+
             }
             ImGui::End();
         }
@@ -466,7 +495,7 @@ void Application::init() {
     mWindow = aurora::Window({
         .width = 1280,
         .height = 720,
-        .title = "Aurora v0.0.4 Indev",
+        .title = AURORA_NAME_VERSION,
 
         .maximized = true,
         .visible = false,
@@ -712,6 +741,34 @@ void Application::update() {
                     ImGui::TreePop();
                 }
 
+                if (ImGui::TreeNode("Masters")) {
+                    ImGui::PushID(level.origin.c_str());
+
+                    for (auto& master : level._masters) {
+                        if (ImGui::SmallButton(master._declaredName.c_str())) {
+                            mContext.pMaster = &master;
+                            mContext.masterTitle = std::format("{}:{}###MASTERVIEWER", level.origin, master._declaredName);
+                        }
+
+                        if (ImGui::BeginPopupContextItem()) {
+                            if (ImGui::Button("Jump to offset in objlib")) {
+                                mContext.memoryEditorOffset = level._bytes.data();
+                                mContext.memoryEditorSize = level._bytes.size();
+                                mContext.memoryEditor.GotoAddrAndHighlight(master._beginOffset, master._endOffset);
+                                ImGui::CloseCurrentPopup();
+                            }
+
+                            ImGui::EndPopup();
+                        }
+
+                        ImGui::SetItemTooltip("Offset from 0x%x to 0x%x (%d bytes)", master._beginOffset, master._endOffset, master._endOffset - master._beginOffset);
+                    }
+
+                    ImGui::PopID();
+
+                    ImGui::TreePop();
+                }
+
                 if (ImGui::TreeNode("Spns")) {
                     ImGui::PushID(level.origin.c_str());
 
@@ -774,6 +831,7 @@ void Application::update() {
     gui_sample_viewer();
     gui_leaf_viewer();
     gui_spn_viewer();
+    gui_master_viewer();
 
     aurora::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
 

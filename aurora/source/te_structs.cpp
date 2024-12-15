@@ -208,6 +208,26 @@ namespace aurora {
 
                     _spns.push_back(std::move(definition));
                 }
+            }
+
+            // Master
+            else if (declaration.type == 0x490780b9) {
+                uint32_t header[]{ 33, 33, 4, 2 };
+                auto headerBytes = std::span<char>(reinterpret_cast<char*>(std::addressof(header)), sizeof(header));
+
+                auto it = std::search(aStream.mData.begin() + aStream.mOffset, aStream.mData.end(), headerBytes.begin(), headerBytes.end());
+                if (it != aStream.mData.end()) {
+                    aStream.advance(std::distance(aStream.mData.begin() + aStream.mOffset, it));
+
+                    declaration._definitionOffset = aStream.mOffset;
+                    SequinMaster definition;
+                    definition._declaredName = declaration.name;
+                    definition._beginOffset = aStream.mOffset;
+                    definition.deserialize(aStream);
+                    definition._endOffset = aStream.mOffset;
+
+                    _masters.push_back(std::move(definition));
+                }
 
             }
         }
@@ -270,5 +290,60 @@ namespace aurora {
 
         objlibPath = aStream.read_str();
         bucketType = aStream.read_str();
+    }
+
+    void SequinMasterLvl::deserialize(ByteStream& aStream) {
+        lvlName = aStream.read_str();
+        gateName = aStream.read_str();
+        isCheckpoint = aStream.read_u8();
+        checkpointLeaderLvlName = aStream.read_str();
+        restLvlName = aStream.read_str();
+
+        unknownBool0 = aStream.read_u8();
+        unknownBool1 = aStream.read_u8();
+        unknown0 = aStream.read_u32();
+        unknownBool2 = aStream.read_u8();
+        //unknownBool3 = aStream.read_u8();
+
+        playPlus = aStream.read_u8();
+    }
+
+    void SequinMaster::deserialize(ByteStream& aStream) {
+        header[0] = aStream.read_u32();
+        assert(header[0] == 33);
+        header[1] = aStream.read_u32();
+        assert(header[1] == 33);
+        header[2] = aStream.read_u32();
+        assert(header[2] == 0x04);
+        header[3] = aStream.read_u32();
+        assert(header[3] == 0x02);
+
+        hash0 = aStream.read_u32();
+        unknown0 = aStream.read_u32();
+        hash1 = aStream.read_u32();
+        timeUnit = aStream.read_str();
+        hash2 = aStream.read_u32();
+        unknown1 = aStream.read_u32();
+        unknown2 = aStream.read_f32();
+        skybox = aStream.read_str();
+        introLvl = aStream.read_str();
+
+        sublevels.resize(aStream.read_u32());
+
+        for (auto& sublevel : sublevels) {
+            sublevel.deserialize(aStream);
+        }
+
+        footer1 = aStream.read_u8();
+        footer2 = aStream.read_u8();
+        footer3 = aStream.read_u32();
+        footer4 = aStream.read_u32();
+        footer5 = aStream.read_u32();
+        footer6 = aStream.read_u32();
+        footer7 = aStream.read_f32();
+        footer8 = aStream.read_f32();
+        footer9 = aStream.read_f32();
+        checkpointLvl = aStream.read_str();
+        pathGameplay = aStream.read_str();
     }
 }

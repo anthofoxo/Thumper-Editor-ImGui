@@ -178,7 +178,7 @@ namespace aurora {
 	struct SequinMasterLvl final {
 		std::string lvlName;	//can be 00 00 00 00 if there IS a boss lvl here
 		std::string gateName;	//can be 00 00 00 00 if there is no boss lvl here
-		uint8_t isCheckpoint;
+		bool isCheckpoint;
 		std::string checkpointLeaderLvlName;
 		std::string restLvlName;
 
@@ -187,15 +187,19 @@ namespace aurora {
 		uint8_t unknownBool1;
 		uint32_t unknown0;		//either an int or 4 bools.
 		uint8_t unknownBool2;
-		uint8_t unknownBool3;
+		//uint8_t unknownBool3;
 		
 
-		uint8_t playPlus;
+		bool playPlus;
+
+		void deserialize(ByteStream& aStream);
 	};
 
 	//using level 2's sequin master as the example, offset 0x346B
 	struct SequinMaster final {
 		std::string _declaredName;
+		size_t _beginOffset = 0;
+		size_t _endOffset = 0;
 
 		uint32_t header[4]; //33, 33, 4, 2
 		uint32_t hash0;
@@ -207,7 +211,7 @@ namespace aurora {
 		float unknown2;		//160
 		std::string skybox;
 		std::string introLvl;
-		uint32_t sublevelCount;
+
 		std::vector<SequinMasterLvl> sublevels;
 
 		//footer
@@ -223,6 +227,7 @@ namespace aurora {
 		std::string checkpointLvl;
 		std::string pathGameplay;	//I haven't seen this change, it's always "path.gameplay"
 
+		void deserialize(ByteStream& aStream);
 	};
 
 	struct Lvl final {						// struct developed from 0x5177 offset from demo.objlib
@@ -291,6 +296,7 @@ namespace aurora {
 		std::vector<Leaf> _leafs;
 		std::vector<Samp> _samps;
 		std::vector<Spn> _spns;
+		std::vector<SequinMaster> _masters;
 
 		uint32_t filetype; // 0x8
 		uint32_t objlibType; // 0x19621c9d
