@@ -8,7 +8,7 @@ const char* kLinkDiscord = "https://discord.com/invite/gTQbquY";
 char const* kLinkGithub = "https://github.com/anthofoxo/aurora";
 
 #ifdef TE_DEBUG
-#   define AURORA_VERSION AURORA_BASE_VERSION __DATE__ " " __TIME__
+#   define AURORA_VERSION AURORA_BASE_VERSION "+" __DATE__ " " __TIME__
 #else
 #   define AURORA_VERSION AURORA_BASE_VERSION
 #endif
@@ -58,11 +58,28 @@ void hash_panel(bool& open) {
     static std::string input = "type input here";
     static uint32_t hash = aurora::hash(input);
 
+    static std::string revinput = "type hash here";
+    static std::string revresult = "<unknown>";
+
     if (!open) return;
 
     if (ImGui::Begin("Hash Panel", &open)) {
+        ImGui::SeparatorText("Hasher");
         if (ImGui::InputText("Input", &input)) hash = aurora::hash(input);
         ImGui::Text("0x%02x", hash);
+
+        ImGui::SeparatorText("Hash Lookup");
+        if (ImGui::InputText("Lookup Hash", &revinput)) {
+            try {
+                uint32_t input = std::stoull(revinput, 0, 16);
+                revresult = aurora::rev_hash(input);
+            }
+            catch (std::exception const&) {
+                revresult = "<invalid input>";
+            }
+        }
+
+        ImGui::LabelText("Output", "%s", revresult.c_str());
     }
     ImGui::End();
 }
@@ -192,6 +209,8 @@ public:
     bool mMasterEditorShown = false;
     bool mWorkingFolderShown = false;
     bool mSampleEditorShown = false;
+    bool mViewHexEditor = false;
+    bool mViewDebugInfo = false;
 
     std::vector<Level> mLevels;
 
@@ -213,7 +232,9 @@ public:
     ViewingContext mContext;
 
     void gui_memory_editor() {
-        if (!ImGui::Begin("Hex Editor")) {
+        if (!mViewHexEditor) return;
+
+        if (!ImGui::Begin("Hex Editor", &mViewHexEditor)) {
             ImGui::End();
             return;
         }
@@ -584,6 +605,8 @@ void Application::update() {
 
         if (ImGui::BeginMenu("View")) {
             ImGui::MenuItem("Hash Panel", nullptr, &mShowHashPanel);
+            ImGui::MenuItem("Hex Editor", nullptr, &mViewHexEditor);
+            ImGui::MenuItem("Debug Information", nullptr, &mViewDebugInfo);
             ImGui::Separator();
             ImGui::MenuItem("Dear ImGui Demo", nullptr, &mShowDearImGuiDemo);
 
@@ -619,11 +642,13 @@ void Application::update() {
         ImGui::EndMainMenuBar();
     }
 
-    if (ImGui::Begin("Debug")) {
-        std::string path = path_to_string(mThumperPath.value());
-        ImGui::LabelText("Thumper Path", "%s", path.c_str());
+    if (mViewDebugInfo) {
+        if (ImGui::Begin("Debug", &mViewDebugInfo)) {
+            std::string path = path_to_string(mThumperPath.value());
+            ImGui::LabelText("Thumper Path", "%s", path.c_str());
+        }
+        ImGui::End();
     }
-    ImGui::End();
 
     hash_panel(mShowHashPanel);
     about_panel(mIconTexture, mShowAboutPanel);
