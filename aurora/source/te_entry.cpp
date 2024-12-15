@@ -184,6 +184,227 @@ public:
     bool mSampleEditorShown = false;
 
     std::vector<Level> mLevels;
+
+    struct ViewingContext final {
+        aurora::Leaf* pLeaf = nullptr;
+        std::string leafTitle;
+
+        aurora::Samp* pSample = nullptr;
+        std::string sampleTitle;
+
+        aurora::Spn* pSpn = nullptr;
+        std::string spnTitle;
+
+        MemoryEditor memoryEditor;
+        void* memoryEditorOffset = nullptr;
+        size_t memoryEditorSize = 0;
+    };
+
+    ViewingContext mContext;
+
+    void gui_memory_editor() {
+        if (!ImGui::Begin("Hex Editor")) {
+            ImGui::End();
+            return;
+        }
+        ImGui::PushFont(mMonoFont);
+        mContext.memoryEditor.DrawContents(mContext.memoryEditorOffset, mContext.memoryEditorSize, 0);
+        ImGui::PopFont();
+        ImGui::End();
+    }
+
+    void gui_sample_viewer() {
+        if (!mContext.sampleTitle.empty() && mContext.pSample) {
+            if (ImGui::Begin(mContext.sampleTitle.c_str())) {
+                ImGui::LabelText("Play Mode", "%s", mContext.pSample->samplePlayMode.c_str());
+                ImGui::LabelText("Path", "%s", mContext.pSample->filePath.c_str());
+                ImGui::LabelText("Volume", "%.2f", mContext.pSample->volume);
+                ImGui::LabelText("Pitch", "%.2f", mContext.pSample->pitch);
+                ImGui::LabelText("Pan", "%.2f", mContext.pSample->pan);
+                ImGui::LabelText("Offset", "%.2f", mContext.pSample->offset);
+                ImGui::LabelText("Channel Group", "%s", mContext.pSample->channelGroup.c_str());
+                
+            }
+            ImGui::End();
+        }
+    }
+
+    void gui_leaf_viewer() {
+        if (!mContext.leafTitle.empty() && mContext.pLeaf) {
+            if (ImGui::Begin(mContext.leafTitle.c_str())) {
+                int maxDataPoints = 0;
+
+                for (auto& trait : mContext.pLeaf->traits) {
+                    if (trait.datapoints.size() > maxDataPoints) maxDataPoints = trait.datapoints.size();
+                }
+
+                ImGui::Button("Hover for leaf dump detail");
+
+                ImGui::SetItemTooltip(
+                    "Time unit: %s\n"
+                    "hash0: %u\n"
+                    "hash1: %u\n"
+                    "hash2: %u\n"
+                    "Unknown 0: %d\n"
+                    "Unknown 1: %d\n"
+                    "Unknown 3: %d\n"
+                    "Unknown 4: %d\n"
+                    "Unknown 5: %d\n",
+                    mContext.pLeaf->timeUnit.c_str(),
+                    mContext.pLeaf->hash0,
+                    mContext.pLeaf->hash1,
+                    mContext.pLeaf->hash2,
+                    mContext.pLeaf->unknown0,
+                    mContext.pLeaf->unknown1,
+                    mContext.pLeaf->unknown3,
+                    mContext.pLeaf->unknown4,
+                    mContext.pLeaf->unknown5
+                );
+
+                if (ImGui::BeginTable(mContext.pLeaf->_declaredName.c_str(), maxDataPoints + 1, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollX)) {
+                    ImGui::TableSetupScrollFreeze(1, 1);
+
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TableHeader("Object:Selector");
+
+                    for (int i = 0; i < maxDataPoints; ++i) {
+                        std::string s = std::to_string(i);
+                        ImGui::TableNextColumn();
+                        ImGui::TableHeader(s.c_str());
+                    }
+
+                    for (auto& trait : mContext.pLeaf->traits) {
+
+
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+
+                        std::string name;
+
+                        if (trait.object == mContext.pLeaf->_declaredName)
+                            name = aurora::rev_hash(trait.selector);
+                        else
+                            name = std::format("{}:{}", trait.object, aurora::rev_hash(trait.selector).c_str());
+
+                        ImGui::TableHeader(name.c_str());
+
+                        ImGui::SetItemTooltip(
+                            "intensity0: %s\n"
+                            "intensity1: %s\n"
+                            "Selector Share: %d\n"
+                            "Unknown 0: %d\n"
+                            "Unknown 1: %d\n"
+                            "Unknown 2: %d\n"
+                            "Unknown 3: %d\n"
+                            "Unknown 4: %d\n"
+                            "Unknown 5: %d\n"
+                            "Unknown 6: %d\n"
+                            "Unknown 7: %d\n"
+                            "Unknown 8: %d\n"
+                            "Unknown 9: %.2f\n"
+                            "Unknown 10: %.2f\n"
+                            "Unknown 11: %.2f\n"
+                            "Unknown 12: %.2f\n"
+                            "Unknown 13: %.2f\n"
+                            "Unknown 14: %d\n"
+                            "Unknown 15: %d\n"
+                            "Unknown 16: %d\n",
+                            trait.intensity0.c_str(),
+                            trait.intensity1.c_str(),
+                            trait.selectorShareIdx,
+                            trait.unknown0,
+                            trait.unknown1,
+                            trait.unknown2,
+                            trait.unknown3,
+                            trait.unknown4,
+                            trait.unknown5,
+                            trait.unknown6,
+                            trait.unknown7,
+                            trait.unknown8,
+                            trait.unknown9,
+                            trait.unknown10,
+                            trait.unknown11,
+                            trait.unknown12,
+                            trait.unknown13,
+                            trait.unknown14,
+                            trait.unknown15,
+                            trait.unknown16
+                        );
+
+                        int idx = 0;
+                        for (int i = 0; i < maxDataPoints; ++i) {
+                            ImGui::TableNextColumn();
+
+                            if (idx >= trait.datapoints.size()) continue;
+
+                            auto& datapoint = trait.datapoints[idx];
+                            if (std::abs(datapoint.time - static_cast<float>(i)) < 0.1f) {
+                                ++idx;
+
+                                int editorDatapointIdx = -1;
+
+                                for (int iEditorData = 0; iEditorData < trait.editorDatapoints.size(); iEditorData += 2) {
+                                    auto& start = trait.editorDatapoints[iEditorData];
+                                    auto& end = trait.editorDatapoints[iEditorData + 1];
+
+                                    if (datapoint.time >= start.time && datapoint.time <= end.time) {
+
+                                        editorDatapointIdx = iEditorData;
+                                        ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF003F00);
+
+                                        break;
+                                    }
+                                }
+
+
+
+
+                                if (trait.datatype == 2) {
+                                    float val = std::any_cast<float>(datapoint.value);
+                                    ImGui::PushStyleColor(ImGuiCol_Text, std::abs(val) > 0.01f ? ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } : ImVec4{ 0.5f, 0.5f, 0.5f, 1.0f });
+                                    ImGui::Text("%.2f", std::any_cast<float>(datapoint.value));
+                                    ImGui::PopStyleColor();
+                                }
+                                else if (trait.datatype == 8 || trait.datatype == 1) {
+                                    bool val = std::any_cast<uint8_t>(datapoint.value);
+                                    ImGui::PushStyleColor(ImGuiCol_Text, val ? ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } : ImVec4{ 0.5f, 0.5f, 0.5f, 1.0f });
+                                    ImGui::Text("%s", val ? "true" : "false");
+                                    ImGui::PopStyleColor();
+                                }
+                                else
+                                    ImGui::TextUnformatted("?");
+
+
+
+                                std::string str = std::format("Relative Offset: {:.1f}\nInterpolation: {}\nEasing: {}", datapoint.time - static_cast<float>(i), datapoint.interpolation, datapoint.easing);
+
+                                ImGui::SetItemTooltip("%s", str.c_str());
+                            }
+                            else {
+                                // Empty
+                            }
+                        }
+                    }
+
+                    ImGui::EndTable();
+                }
+            }
+            ImGui::End();
+        }
+    }
+
+    void gui_spn_viewer() {
+        if (!mContext.spnTitle.empty() && mContext.pSpn) {
+            if (ImGui::Begin(mContext.spnTitle.c_str())) {
+                ImGui::LabelText("XFM Name", "%s", mContext.pSpn->xfmName.c_str());
+                ImGui::LabelText("Constraint", "%s", mContext.pSpn->constraint.c_str());
+                ImGui::LabelText("Objlib Path", "%s", mContext.pSpn->objlibPath.c_str());
+                ImGui::LabelText("Bucket", "%s", mContext.pSpn->bucketType.c_str());
+            }
+            ImGui::End();
+        }
+    }
 };
 
 void Application::init() {
@@ -390,15 +611,7 @@ void Application::update() {
     hash_panel(mShowHashPanel);
     about_panel(mIconTexture, mShowAboutPanel);
 
-    
-    static aurora::Leaf* pLeaf = nullptr;
-    static std::string title;
-    
-    static MemoryEditor mem_edit_2;
-    static void* ptr = nullptr;
-    static size_t size = 0;
-
-    if (ImGui::Begin("Parsed Leafs")) {
+    if (ImGui::Begin("Parsed Objlibs")) {
         for (auto& level : gLevels) {
              if (ImGui::TreeNode(level.origin.c_str())) {
                 if (ImGui::TreeNode("Leafs")) {
@@ -406,15 +619,15 @@ void Application::update() {
 
                     for (auto& leaf : level._leafs) {
                         if (ImGui::SmallButton(leaf._declaredName.c_str())) {
-                            pLeaf = &leaf;
-                            title = std::format("{}:{}###LEAFVIEWER", level.origin, leaf._declaredName);
+                            mContext.pLeaf = &leaf;
+                            mContext.leafTitle = std::format("{}:{}###LEAFVIEWER", level.origin, leaf._declaredName);
                         }
 
                         if (ImGui::BeginPopupContextItem()) {
                             if (ImGui::Button("Jump to offset in objlib")) {
-                                ptr = level._bytes.data();
-                                size = level._bytes.size();
-                                mem_edit_2.GotoAddrAndHighlight(leaf._beginOffset, leaf._endOffset);
+                                mContext.memoryEditorOffset = level._bytes.data();
+                                mContext.memoryEditorSize = level._bytes.size();
+                                mContext.memoryEditor.GotoAddrAndHighlight(leaf._beginOffset, leaf._endOffset);
                                 ImGui::CloseCurrentPopup();
                             }
 
@@ -434,13 +647,15 @@ void Application::update() {
 
                     for (auto& samp : level._samps) {
                         if (ImGui::SmallButton(samp._declaredName.c_str())) {
+                            mContext.pSample = &samp;
+                            mContext.sampleTitle = std::format("{}:{}###SAMPVIEWER", level.origin, samp._declaredName);
                         }
 
                         if (ImGui::BeginPopupContextItem()) {
                             if (ImGui::Button("Jump to offset in objlib")) {
-                                ptr = level._bytes.data();
-                                size = level._bytes.size();
-                                mem_edit_2.GotoAddrAndHighlight(samp._beginOffset, samp._endOffset);
+                                mContext.memoryEditorOffset = level._bytes.data();
+                                mContext.memoryEditorSize = level._bytes.size();
+                                mContext.memoryEditor.GotoAddrAndHighlight(samp._beginOffset, samp._endOffset);
                                 ImGui::CloseCurrentPopup();
                             }
 
@@ -460,13 +675,15 @@ void Application::update() {
 
                     for (auto& spn : level._spns) {
                         if (ImGui::SmallButton(spn._declaredName.c_str())) {
+                            mContext.pSpn = &spn;
+                            mContext.spnTitle = std::format("{}:{}###SPNVIEWER", level.origin, spn._declaredName);
                         }
 
                         if (ImGui::BeginPopupContextItem()) {
                             if (ImGui::Button("Jump to offset in objlib")) {
-                                ptr = level._bytes.data();
-                                size = level._bytes.size();
-                                mem_edit_2.GotoAddrAndHighlight(spn._beginOffset, spn._endOffset);
+                                mContext.memoryEditorOffset = level._bytes.data();
+                                mContext.memoryEditorSize = level._bytes.size();
+                                mContext.memoryEditor.GotoAddrAndHighlight(spn._beginOffset, spn._endOffset);
                                 ImGui::CloseCurrentPopup();
                             }
 
@@ -511,178 +728,10 @@ void Application::update() {
     }
     ImGui::End();
 
-    
-    if (ImGui::Begin("Hex Editor")) {
-        ImGui::PushFont(mMonoFont);
-        mem_edit_2.DrawContents(ptr, size, 0);
-        ImGui::PopFont();
-    }
-    ImGui::End();
-    
-
-    if (!title.empty() && pLeaf) {
-        if (ImGui::Begin(title.c_str())) {
-            int maxDataPoints = 0;
-
-            for (auto& trait : pLeaf->traits) {
-                if (trait.datapoints.size() > maxDataPoints) maxDataPoints = trait.datapoints.size();
-            }
-
-            ImGui::Button("Hover for leaf dump detail");
-
-            ImGui::SetItemTooltip(
-                "Time unit: %s\n"
-                "hash0: %u\n"
-                "hash1: %u\n"
-                "hash2: %u\n"
-                "Unknown 0: %d\n"
-                "Unknown 1: %d\n"
-                "Unknown 3: %d\n"
-                "Unknown 4: %d\n"
-                "Unknown 5: %d\n",
-                pLeaf->timeUnit.c_str(),
-                pLeaf->hash0,
-                pLeaf->hash1,
-                pLeaf->hash2,
-                pLeaf->unknown0,
-                pLeaf->unknown1,
-                pLeaf->unknown3,
-                pLeaf->unknown4,
-                pLeaf->unknown5
-            );
-
-            if (ImGui::BeginTable(pLeaf->_declaredName.c_str(), maxDataPoints + 1, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollX)) {
-                ImGui::TableSetupScrollFreeze(1, 1);
-
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                ImGui::TableHeader("Object:Selector");
-
-                for (int i = 0; i < maxDataPoints; ++i) {
-                    std::string s = std::to_string(i);
-                    ImGui::TableNextColumn();
-                    ImGui::TableHeader(s.c_str());
-                }
-
-                for (auto& trait : pLeaf->traits) {
-
-
-                    ImGui::TableNextRow();
-                    ImGui::TableNextColumn();
-
-                    std::string name;
-
-                    if (trait.object == pLeaf->_declaredName)
-                        name = aurora::rev_hash(trait.selector);
-                    else
-                        name = std::format("{}:{}", trait.object, aurora::rev_hash(trait.selector).c_str());
-
-                    ImGui::TableHeader(name.c_str());
-
-                    ImGui::SetItemTooltip(
-                        "intensity0: %s\n"
-                        "intensity1: %s\n"
-                        "Selector Share: %d\n"
-                        "Unknown 0: %d\n"
-                        "Unknown 1: %d\n"
-                        "Unknown 2: %d\n"
-                        "Unknown 3: %d\n"
-                        "Unknown 4: %d\n"
-                        "Unknown 5: %d\n"
-                        "Unknown 6: %d\n"
-                        "Unknown 7: %d\n"
-                        "Unknown 8: %d\n"
-                        "Unknown 9: %.2f\n"
-                        "Unknown 10: %.2f\n"
-                        "Unknown 11: %.2f\n"
-                        "Unknown 12: %.2f\n"
-                        "Unknown 13: %.2f\n"
-                        "Unknown 14: %d\n"
-                        "Unknown 15: %d\n"
-                        "Unknown 16: %d\n",
-                        trait.intensity0.c_str(),
-                        trait.intensity1.c_str(),
-                        trait.selectorShareIdx,
-                        trait.unknown0,
-                        trait.unknown1,
-                        trait.unknown2,
-                        trait.unknown3,
-                        trait.unknown4,
-                        trait.unknown5,
-                        trait.unknown6,
-                        trait.unknown7,
-                        trait.unknown8,
-                        trait.unknown9,
-                        trait.unknown10,
-                        trait.unknown11,
-                        trait.unknown12,
-                        trait.unknown13,
-                        trait.unknown14,
-                        trait.unknown15,
-                        trait.unknown16
-                    );
-
-                    int idx = 0;
-                    for (int i = 0; i < maxDataPoints; ++i) {
-                        ImGui::TableNextColumn();
-
-                        if (idx >= trait.datapoints.size()) continue;
-
-                        auto& datapoint = trait.datapoints[idx];
-                        if (std::abs(datapoint.time - static_cast<float>(i)) < 0.1f) {
-                            ++idx;
-
-                            int editorDatapointIdx = -1;
-
-                            for (int iEditorData = 0; iEditorData < trait.editorDatapoints.size(); iEditorData += 2) {
-                                auto& start = trait.editorDatapoints[iEditorData];
-                                auto& end = trait.editorDatapoints[iEditorData + 1];
-
-                                if (datapoint.time >= start.time && datapoint.time <= end.time) {
-
-                                    editorDatapointIdx = iEditorData;
-                                    ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, 0xFF003F00);
-
-                                    break;
-                                }
-                            }
-
-
-
-
-                            if (trait.datatype == 2) {
-                                float val = std::any_cast<float>(datapoint.value);
-                                ImGui::PushStyleColor(ImGuiCol_Text, std::abs(val) > 0.01f ? ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } : ImVec4{ 0.5f, 0.5f, 0.5f, 1.0f });
-                                ImGui::Text("%.2f", std::any_cast<float>(datapoint.value));
-                                ImGui::PopStyleColor();
-                            }
-                            else if (trait.datatype == 8 || trait.datatype == 1) {
-                                bool val = std::any_cast<uint8_t>(datapoint.value);
-                                ImGui::PushStyleColor(ImGuiCol_Text, val ? ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } : ImVec4{ 0.5f, 0.5f, 0.5f, 1.0f });
-                                ImGui::Text("%s", val ? "true" : "false");
-                                ImGui::PopStyleColor();
-                            }
-                            else
-                                ImGui::TextUnformatted("?");
-
-
-
-                            std::string str = std::format("Relative Offset: {:.1f}\nInterpolation: {}\nEasing: {}", datapoint.time - static_cast<float>(i), datapoint.interpolation, datapoint.easing);
-
-                            ImGui::SetItemTooltip("%s", str.c_str());
-                        }
-                        else {
-                            // Empty
-                        }
-                    }
-                }
-
-                ImGui::EndTable();
-            }
-        }
-        ImGui::End();
-    }
-    
+    gui_memory_editor();    
+    gui_sample_viewer();
+    gui_leaf_viewer();
+    gui_spn_viewer();
 
     aurora::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
 
