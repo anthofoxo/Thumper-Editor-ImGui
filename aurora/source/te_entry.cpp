@@ -2,6 +2,18 @@
 #   include <Windows.h>
 #endif
 
+#define AURORA_NAME "Aurora"
+#define AURORA_BASE_VERSION "v0.0.4"
+const char* kLinkDiscord = "https://discord.com/invite/gTQbquY";
+char const* kLinkGithub = "https://github.com/anthofoxo/aurora";
+
+#ifdef TE_DEBUG
+#   define AURORA_VERSION AURORA_BASE_VERSION __DATE__ " " __TIME__
+#else
+#   define AURORA_VERSION AURORA_BASE_VERSION
+#endif
+#define AURORA_NAME_VERSION AURORA_NAME " " AURORA_VERSION
+
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
@@ -59,12 +71,10 @@ void about_panel(GLuint icon, bool& open) {
     if (!open) return;
 
     if (open) {
-        if (ImGui::Begin("About Thumper Mod Loader v2.0.0.0", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (ImGui::Begin("About " AURORA_NAME, &open, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Image((ImTextureID)(uintptr_t)icon, { 128.0f, 128.0f });
-            ImGui::TextUnformatted("Thumper Mod Loader");
-            ImGui::TextUnformatted("Version 2.0.0.0");
-            ImGui::TextUnformatted("Copyright (c) 2081");
-            ImGui::TextUnformatted("CocoaMix Inc.");
+            ImGui::TextUnformatted("Version " AURORA_VERSION);
+            ImGui::TextUnformatted("Copyright (c) 2024 AnthoFoxo, CocoaMix, JLMusic");
             ImGui::TextUnformatted("A tool used for building custom level for the game Thumper.");
         }
         ImGui::End();
@@ -500,9 +510,8 @@ void Application::init() {
         );
     }
 
+    aurora::reload_hashtable();
     read_all_leafs(mThumperPath);
-
-   
 }
 
 void Application::uninit() {
@@ -581,19 +590,27 @@ void Application::update() {
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Options")) {
+            if (ImGui::MenuItem("Change Game Dir")) {
+                if (auto path = select_directory_save()) mThumperPath = path;
+            }
+
+            if (ImGui::MenuItem("Reload Hashtable")) {
+                aurora::reload_hashtable();
+            }
+
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("Help")) {
             ImGui::MenuItem("About", nullptr, &mShowAboutPanel);
 
-            if (ImGui::MenuItem("Discord Server", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://discord.com/invite/gTQbquY");
+            if (ImGui::MenuItem("Discord", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
+                ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), kLinkDiscord);
             }
 
             if (ImGui::MenuItem("Github", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://github.com/CocoaMix86/Thumper-Custom-Level-Editor");
-            }
-
-            if (ImGui::MenuItem("Donate & Tip (ko-fi)", nullptr, nullptr, ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn)) {
-                ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), "https://ko-fi.com/cocoamix");
+                ImGui::GetCurrentContext()->PlatformIO.Platform_OpenInShellFn(ImGui::GetCurrentContext(), kLinkGithub);
             }
 
             ImGui::EndMenu();
@@ -735,6 +752,7 @@ void Application::update() {
 
     aurora::gui_diff_table(mShowDifficultyExplanation, mDiffTextures);
 
+#if 0
     if (ImGui::Begin("Thumper Level Editor v0.0.0.1", nullptr, ImGuiWindowFlags_MenuBar))
     {
         if (ImGui::BeginMenuBar())
@@ -1002,24 +1020,9 @@ void Application::update() {
         }
     }
     ImGui::End();
+#endif
 
-    if (ImGui::Begin("Thumper Mod Loader v2.0.0.0", nullptr, ImGuiWindowFlags_MenuBar)) {
-
-        if (ImGui::BeginMenuBar()) {
-
-            if (ImGui::BeginMenu("Options")) {
-                if (ImGui::MenuItem("Change Game Dir")) {
-                    if (auto path = select_directory_save()) mThumperPath = path;
-                }
-
-                ImGui::MenuItem("[!!!] Reset Settings [!!!]", nullptr, nullptr, false);
-
-                ImGui::EndMenu();
-            }
-
-            ImGui::EndMenuBar();
-        }
-
+    if (ImGui::Begin("Thumper Mod Loader")) {
         ImGui::TextUnformatted("Mod Mode");
         ImGui::SameLine();
 

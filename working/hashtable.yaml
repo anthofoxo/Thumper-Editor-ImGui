@@ -1,0 +1,308 @@
+known:
+- alpha
+- ambient_color
+- aurora.ent
+- b_black
+- b_gamma
+- b_output_black
+- b_output_white
+- b_white
+- base_bpm
+- black
+- boss_7_tunnel_enter.ent
+- boss_damage_stage1.ent
+- boss_damage_stage2.ent
+- boss_damage_stage3.ent
+- boss_damage_stage4.ent
+- boss_gate_pellet.ent
+- boss_shield_2.ent
+- boss_shield_3.ent
+- boss_shield_3.z01
+- boss_shield_tutorial.ent
+- boss_shield.ent
+- center_multi.a02
+- center_multi.ent
+- center_multi.z01
+- checkpoint_shatter.ent
+- collide.ent
+- color1
+- color10
+- color2
+- color3
+- color4
+- color5
+- color6
+- color7
+- color8
+- color9
+- crakhed
+- crakhed_damage.ent
+- crakhed_destroy.ent
+- crakhed_level7.ent
+- dark_blue
+- dark_green
+- dark_red
+- data_streaks_radial.ent
+- death_shatter.ent
+- debug_speed
+- diamond_tunnel.ent
+- diffuse_color
+- diss1
+- diss10
+- diss11
+- diss11
+- diss12
+- diss13
+- diss14
+- diss15
+- diss16
+- diss17
+- diss18
+- diss19
+- diss2
+- diss20
+- diss3
+- diss4
+- diss5
+- diss6
+- diss7
+- diss8
+- diss9
+- ducker_crak.ent
+- emissive_color
+- ending_sequence.ent
+- fade
+- final_twirlies_half.ent
+- final_twirlies.ent
+- fingers1_gate_8.ent
+- fingers1_gate.ent
+- fingers1_long_20.ent
+- fingers1_long.ent
+- fingers1_short.ent
+- fingers1_unison.ent
+- fingers1_wave_in.ent
+- fingers1.ent
+- fire
+- frame
+- french12
+- g_black
+- g_gamma
+- g_output_black
+- g_output_white
+- g_white
+- Gameplay
+- grind_remain_beats
+- grindable_double.ent
+- grindable_quarters.ent
+- grindable_still.a02
+- grindable_still.ent
+- grindable_still.z01
+- grindable_still.z02
+- grindable_thirds.ent
+- grindable_with_thump.ent
+- grinding
+- intensity_step
+- invulerability_beats
+- invulnerable
+- jump_boss.ent
+- jump_high_2.ent
+- jump_high_2.ent
+- jump_high_4.ent
+- jump_high_4.ent
+- jump_high_6.ent
+- jump_high_6.ent
+- jump_high.ent
+- jump_high.ent
+- jumper_1_step.ent
+- jumper_1_step.ent
+- jumper_6_step.ent
+- jumper_6_step.ent
+- jumper_boss.ent
+- layer_volume
+- left_multi.a01
+- left_multi.a02
+- left_multi.ent
+- left_multi.z01
+- level_5.ent
+- level_6.ent
+- level_7.ent
+- level_8_multi.ent
+- level_8.ent
+- level_9_multi.ent
+- level_9.ent
+- light_blue
+- light_green
+- light_red
+- millipede_decorative_b.ent
+- millipede_decorative1.ent
+- millipede_half_phrase.a01
+- millipede_half_phrase.a02
+- millipede_half_phrase.ent
+- millipede_half_phrase.z01
+- millipede_half_phrase.z02
+- millipede_half.a01
+- millipede_half.a02
+- millipede_half.ent
+- millipede_half.z01
+- millipede_half.z02
+- millipede_quarter_phrase.a01
+- millipede_quarter_phrase.a02
+- millipede_quarter_phrase.ent
+- millipede_quarter_phrase.z01
+- millipede_quarter_phrase.z02
+- millipede_quarter.a01
+- millipede_quarter.a02
+- millipede_quarter.ent
+- millipede_quarter.z01
+- millipede_quarter.z02
+- offset_x
+- offset_y
+- offset_z
+- path_phase
+- pause
+- pellet_pulse.ent
+- pitch
+- play
+- play_clean
+- pounding
+- r_black
+- r_gamma
+- r_output_black
+- r_output_white
+- r_white
+- radial_blur
+- red_tentacle.ent
+- reflectivity_color
+- respawn
+- resume
+- rgb_black
+- rgb_output_black
+- rgb_output_white
+- rgb_white
+- right_multi.a02
+- right_multi.ent
+- right_multi.z01
+- right_multi.z02
+- ring_checkpoint_bonus.ent
+- rise1
+- rise10
+- rise2
+- rise3
+- rise4
+- rise5
+- rise6
+- rise7
+- rise8
+- rise9
+- roll
+- scale_offset_y
+- scale_x
+- scale_y
+- scale_z
+- sentry_boss_multilane.ent
+- sentry_boss.ent
+- sentry.ent
+- sequin_speed
+- smoke.ent
+- specular_color
+- speed
+- speed_streaks_RGB.ent
+- speed_streaks_short.ent
+- speed_streaks.ent
+- spike_left.ent
+- spike_right_base.ent
+- spike_right_ground_collide.ent
+- spike_right.ent
+- spike.ent
+- stalactites.ent
+- start_power
+- stick_left_x
+- stop
+- swerve_off.a01
+- swerve_off.a02
+- swerve_off.ent
+- swerve_off.z01
+- swerve_off.z02
+- tentacle_decorative.ent
+- thump_boss_bonus.ent
+- thump_checkpoint.a01
+- thump_checkpoint.ent
+- thump_rails_fast_activat.ent
+- thump_rails.a01
+- thump_rails.a02
+- thump_rails.ent
+- thump_rails.z01
+- thump_rails.z02
+- tile_phase
+- trees_16.ent
+- trees_16.ent
+- trees_4.ent
+- trees_4.ent
+- trees.ent
+- trees.ent
+- turn
+- turn_auto
+- turn_left_end.ent
+- turn_left_isolated.ent
+- turn_left_middle.ent
+- turn_left_start.ent
+- turn_right_end.ent
+- turn_right_isolated.ent
+- turn_right_middle.ent
+- turn_right_start.ent
+- tutorial_thumps.ent
+- visibla01
+- visibla02
+- visible
+- visiblz01
+- visiblz02
+- vortex_decorator.ent
+- weapon.ent
+- win
+- win_checkpoint
+- win_checkpoint_silent
+- win_debris.ent
+- zillapede_gate.ent
+unknown:
+  0x5232f8f9: .anim Objects
+  0x7dd6b7d8: .bend Objects
+  0x570e17fa: .bind Objects
+  0x8f86650f: .cam Objects
+  0xadb02913: .ch Objects
+  0x4945e860: .cond Objects
+  0xac1abb2c: .dch Objects
+  0x9ce604da: .dec Objects
+  0xacc2033e: .dsp Objects
+  0xeae6beee: .ent Objects
+  0x3bbcc4ec: .env Objects
+  0x86621b1e: .flow Objects
+  0x6222e06f: .flt Objects
+  0x993811f5: .flt Objects
+  0xc2fd0a11: .gameplay Objects
+  0xaa63a508: .gate Objects
+  0xc2aaec43: .grp Objects
+  0xce7e85f6: .leaf Objects
+  0x711a2715: .light Objects
+  0xbcd17473: .lvl Objects
+  0x490780b9: .master Objects
+  0x1a5812f6: .mastering Objects
+  0x7ba5c8e0: .mat Objects
+  0xbf69f115: .mesh Objects
+  0x1ba51443: GFX.objlib Objects
+  0xb0954548: Sequin.objlib Objects
+  0x9d1c6219: Obj.objlib Objects
+  0x0b374d9e: Level.objlib Objects
+  0xe674624f: Avatar.objlib Objects
+  0x4890a3f6: .path Objects
+  0x745dd78b: .playspace Objects
+  0x230da622: .pulse Objects
+  0x7aa8f390: .samp Objects
+  0xd3058b5d: .sdraw / .drawer Objects
+  0xcac934cf: .sh Objects
+  0xd897d5db: .spn Objects
+  0xd955fdc6: .st Objects
+  0xe7b3aadb: .steer Objects
+  0x96ba8a70: .tex Objects
+  0x799c45a7: .vib Objects
+  0x4f37349d: .vr_settings Objects
+  0x7d9db5ef: .xfm / .xfmer Objects
